@@ -17,8 +17,7 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    nombreOperadora: "",
-    nombrePiloto: "",
+    nombre: "",
   });
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -38,47 +37,18 @@ export default function RegisterPage() {
       if (authError) throw authError;
       if (!authData.user) throw new Error("No se pudo crear el usuario");
 
-      const userId = authData.user.id;
-
-      // 2. Crear operadora
-      const { data: operadora, error: opError } = await supabase
-        .from("operadoras")
-        .insert({
-          nombre: formData.nombreOperadora,
-          email: formData.email,
-          user_id: userId,
-          activa: true,
-          creditos_disponibles: 0,
-        })
-        .select()
-        .single();
-
-      if (opError) throw opError;
-
-      // 3. Crear piloto
-      const { data: piloto, error: pilotoError } = await supabase
+      // 2. Crear piloto (el trigger crea operadora automáticamente)
+      const { error: pilotoError } = await supabase
         .from("pilotos")
         .insert({
-          nombre: formData.nombrePiloto,
+          id_piloto: authData.user.id,
+          nombre: formData.nombre,
           email: formData.email,
-          user_id: userId,
           plan_activo: true,
           vuelos_restantes: 5,
-        })
-        .select()
-        .single();
-
-      if (pilotoError) throw pilotoError;
-
-      // 4. Vincular piloto con operadora
-      const { error: vinculoError } = await supabase
-        .from("operadora_pilotos")
-        .insert({
-          id_operadora: operadora.id,
-          id_piloto: piloto.id_piloto,
         });
 
-      if (vinculoError) throw vinculoError;
+      if (pilotoError) throw pilotoError;
 
       router.push("/operator");
       router.refresh();
@@ -120,26 +90,13 @@ export default function RegisterPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="nombreOperadora">Nombre de tu Operadora</Label>
+                <Label htmlFor="nombre">Tu Nombre</Label>
                 <Input
-                  id="nombreOperadora"
-                  type="text"
-                  placeholder="Mi Empresa Drones S.L."
-                  value={formData.nombreOperadora}
-                  onChange={(e) => setFormData({ ...formData, nombreOperadora: e.target.value })}
-                  required
-                  disabled={loading}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="nombrePiloto">Tu Nombre</Label>
-                <Input
-                  id="nombrePiloto"
+                  id="nombre"
                   type="text"
                   placeholder="Juan García"
-                  value={formData.nombrePiloto}
-                  onChange={(e) => setFormData({ ...formData, nombrePiloto: e.target.value })}
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                   required
                   disabled={loading}
                 />
