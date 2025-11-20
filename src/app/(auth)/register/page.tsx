@@ -43,7 +43,7 @@ export default function RegisterPage() {
         .insert({
           id_piloto: authData.user.id,
           nombre: formData.nombre,
-          email: formData.email,
+          correo: formData.correo,
           plan_activo: true,
           vuelos_restantes: 5,
         });
@@ -108,8 +108,8 @@ export default function RegisterPage() {
                   id="email"
                   type="email"
                   placeholder="tu@email.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  value={formData.correo}
+                  onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
                   required
                   disabled={loading}
                 />
