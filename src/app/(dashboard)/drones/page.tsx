@@ -1,108 +1,100 @@
-import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Plus, Settings, MoreHorizontal, Plane } from "lucide-react";
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertTriangle, Percent, Clock, TrendingUp, Plane, Users, FolderKanban, PlaneTakeoff } from "lucide-react";
 
-const drones = [
-  { id: 1, marca_modelo: "DJI FPV", matricula: "GC2226RPA", tco_por_hora: 5.14, horas_uso: 2.83, salud: 1, categoria: "C1" },
-  { id: 2, marca_modelo: "DJI Mavic 2", matricula: "GC2044RPA", tco_por_hora: 3.38, horas_uso: 11.50, salud: 3, categoria: "C1" },
-];
+export default async function OperatorPage() {
+  const supabase = createServerComponentClient({ cookies });
 
-export default function DronesPage() {
+  // Consultar datos reales
+  const { data: drones } = await supabase.from('drones').select('*');
+  const { data: pilotos } = await supabase.from('pilotos').select('*');
+  const { data: proyectos } = await supabase.from('proyectos').select('*').eq('estado', 'PENDIENTE');
+  const { data: vuelos } = await supabase.from('vuelos').select('*');
+  const { data: operadora } = await supabase.from('operadoras').select('*').single();
+
+  const dronesActivos = drones?.filter(d => d.activo)?.length || 0;
+  const totalPilotos = pilotos?.length || 0;
+  const proyectosActivos = proyectos?.length || 0;
+  const totalVuelos = vuelos?.length || 0;
+
+  // Calcular TCO promedio
+  const tcoPromedio = drones?.length 
+    ? (drones.reduce((sum, d) => sum + (d.tco_por_hora || 0), 0) / drones.length).toFixed(2)
+    : "0.00";
+
+  const stats = [
+    { name: "Alertas Críticas", value: "0", icon: AlertTriangle, color: "text-green-600", bgColor: "bg-green-50" },
+    { name: "Disponibilidad Flota", value: `${dronesActivos > 0 ? Math.round((dronesActivos / (drones?.length || 1)) * 100) : 0}%`, icon: Percent, color: "text-orange-600", bgColor: "bg-orange-50" },
+    { name: "COH Promedio", value: `${tcoPromedio} €/h`, icon: Clock, color: "text-blue-600", bgColor: "bg-blue-50" },
+    { name: "Vida Útil Consumida", value: "0%", icon: TrendingUp, color: "text-purple-600", bgColor: "bg-purple-50" },
+  ];
+
+  const quickStats = [
+    { name: "Drones Activos", value: dronesActivos.toString(), icon: Plane },
+    { name: "Pilotos", value: totalPilotos.toString(), icon: Users },
+    { name: "Proyectos Activos", value: proyectosActivos.toString(), icon: FolderKanban },
+    { name: "Vuelos Total", value: totalVuelos.toString(), icon: PlaneTakeoff },
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">UAS y TCO</h1>
-          <p className="text-gray-500 mt-1">{drones.length} drones registrados</p>
-        </div>
-        <Button className="w-full sm:w-auto">
-          <Plus className="h-4 w-4 mr-2" />
-          Añadir Drone
-        </Button>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard Operadora</h1>
+        <p className="text-gray-500 mt-1">Resumen de tu flota y operaciones</p>
       </div>
 
-      <Card className="hidden md:block">
-        <CardContent className="p-0">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Marca/Modelo</th>
-                <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Matrícula</th>
-                <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">TCO/Hora</th>
-                <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Horas</th>
-                <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Salud</th>
-                <th className="text-right text-xs font-medium text-gray-500 uppercase px-6 py-3">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {drones.map((drone) => (
-                <tr key={drone.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                        <Plane className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{drone.marca_modelo}</p>
-                        <p className="text-xs text-gray-500">{drone.categoria}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">{drone.matricula}</td>
-                  <td className="px-6 py-4 text-sm font-medium text-green-600">{drone.tco_por_hora.toFixed(2)} €</td>
-                  <td className="px-6 py-4 text-sm text-gray-900">{drone.horas_uso.toFixed(2)}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-2 bg-gray-200 rounded-full">
-                        <div className="h-full bg-green-500 rounded-full" style={{ width: `${drone.salud}%` }} />
-                      </div>
-                      <span className="text-xs text-gray-500">{drone.salud}%</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <Button variant="ghost" size="sm"><Settings className="h-4 w-4" /></Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="h-14 w-14 rounded-full bg-blue-100 flex items-center justify-center">
+              <span className="text-xl font-bold text-blue-700">
+                {operadora?.nombre?.substring(0, 2).toUpperCase() || "MI"}
+              </span>
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">{operadora?.nombre || "Mi Operador"}</h2>
+              <p className="text-gray-500">{operadora?.numero_aesa || "Sin número AESA"}</p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      <div className="md:hidden space-y-4">
-        {drones.map((drone) => (
-          <Card key={drone.id}>
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                    <Plane className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{drone.marca_modelo}</p>
-                    <p className="text-sm text-gray-500">{drone.matricula}</p>
-                  </div>
-                </div>
-                <Button variant="ghost" size="icon"><MoreHorizontal className="h-5 w-5" /></Button>
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-gray-500">TCO/Hora</p>
-                  <p className="text-sm font-medium text-green-600">{drone.tco_por_hora.toFixed(2)} €</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((stat) => (
+          <Card key={stat.name}>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className={`h-12 w-12 rounded-lg ${stat.bgColor} flex items-center justify-center`}>
+                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Horas</p>
-                  <p className="text-sm font-medium text-gray-900">{drone.horas_uso.toFixed(2)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Salud</p>
-                  <p className="text-sm font-medium text-gray-900">{drone.salud}%</p>
+                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                  <p className="text-sm text-gray-500">{stat.name}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumen Rápido</h3>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {quickStats.map((stat) => (
+            <Card key={stat.name}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <stat.icon className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <p className="text-xl font-semibold text-gray-900">{stat.value}</p>
+                    <p className="text-xs text-gray-500">{stat.name}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   );
