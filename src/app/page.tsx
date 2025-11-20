@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plane, BarChart3, Mic, Zap } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 export default function HomePage() {
   return (
