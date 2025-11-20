@@ -15,7 +15,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    email: "",
+    correo: "",
     password: "",
     nombre: "",
   });
@@ -30,7 +30,7 @@ export default function RegisterPage() {
     try {
       // 1. Crear usuario en Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
+        correo: formData.correo,
         password: formData.password,
       });
 
