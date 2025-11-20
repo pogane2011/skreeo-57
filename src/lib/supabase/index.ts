@@ -1,2 +1,2 @@
-export * from './client'
-export * from './server'
+export { createClient as createBrowserClient } from './client'
+export { createClient as createServerClient } from './server'
