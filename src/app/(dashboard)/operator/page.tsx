@@ -1,21 +1,42 @@
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, Percent, Clock, TrendingUp, Plane, Users, FolderKanban, PlaneTakeoff } from "lucide-react";
 
-const stats = [
-  { name: "Alertas Críticas", value: "0", icon: AlertTriangle, color: "text-green-600", bgColor: "bg-green-50" },
-  { name: "Disponibilidad Flota", value: "50%", icon: Percent, color: "text-orange-600", bgColor: "bg-orange-50" },
-  { name: "COH Promedio", value: "24.26 €/h", icon: Clock, color: "text-blue-600", bgColor: "bg-blue-50" },
-  { name: "Vida Útil Consumida", value: "0%", icon: TrendingUp, color: "text-purple-600", bgColor: "bg-purple-50" },
-];
+export default async function OperatorPage() {
+  const supabase = createServerComponentClient({ cookies });
 
-const quickStats = [
-  { name: "Drones Activos", value: "2", icon: Plane },
-  { name: "Pilotos", value: "2", icon: Users },
-  { name: "Proyectos Activos", value: "2", icon: FolderKanban },
-  { name: "Vuelos Este Mes", value: "13", icon: PlaneTakeoff },
-];
+  // Consultar datos reales
+  const { data: drones } = await supabase.from('drones').select('*');
+  const { data: pilotos } = await supabase.from('pilotos').select('*');
+  const { data: proyectos } = await supabase.from('proyectos').select('*').eq('estado', 'PENDIENTE');
+  const { data: vuelos } = await supabase.from('vuelos').select('*');
+  const { data: operadora } = await supabase.from('operadoras').select('*').single();
 
-export default function OperatorPage() {
+  const dronesActivos = drones?.filter(d => d.activo)?.length || 0;
+  const totalPilotos = pilotos?.length || 0;
+  const proyectosActivos = proyectos?.length || 0;
+  const totalVuelos = vuelos?.length || 0;
+
+  // Calcular TCO promedio
+  const tcoPromedio = drones?.length 
+    ? (drones.reduce((sum, d) => sum + (d.tco_por_hora || 0), 0) / drones.length).toFixed(2)
+    : "0.00";
+
+  const stats = [
+    { name: "Alertas Críticas", value: "0", icon: AlertTriangle, color: "text-green-600", bgColor: "bg-green-50" },
+    { name: "Disponibilidad Flota", value: `${dronesActivos > 0 ? Math.round((dronesActivos / (drones?.length || 1)) * 100) : 0}%`, icon: Percent, color: "text-orange-600", bgColor: "bg-orange-50" },
+    { name: "COH Promedio", value: `${tcoPromedio} €/h`, icon: Clock, color: "text-blue-600", bgColor: "bg-blue-50" },
+    { name: "Vida Útil Consumida", value: "0%", icon: TrendingUp, color: "text-purple-600", bgColor: "bg-purple-50" },
+  ];
+
+  const quickStats = [
+    { name: "Drones Activos", value: dronesActivos.toString(), icon: Plane },
+    { name: "Pilotos", value: totalPilotos.toString(), icon: Users },
+    { name: "Proyectos Activos", value: proyectosActivos.toString(), icon: FolderKanban },
+    { name: "Vuelos Total", value: totalVuelos.toString(), icon: PlaneTakeoff },
+  ];
+
   return (
     <div className="space-y-8">
       <div>
@@ -27,11 +48,13 @@ export default function OperatorPage() {
         <CardContent className="p-6">
           <div className="flex items-center gap-4">
             <div className="h-14 w-14 rounded-full bg-blue-100 flex items-center justify-center">
-              <span className="text-xl font-bold text-blue-700">MI</span>
+              <span className="text-xl font-bold text-blue-700">
+                {operadora?.nombre?.substring(0, 2).toUpperCase() || "MI"}
+              </span>
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Mi Operador</h2>
-              <p className="text-gray-500">ESP123456789 • privada</p>
+              <h2 className="text-xl font-semibold text-gray-900">{operadora?.nombre || "Mi Operador"}</h2>
+              <p className="text-gray-500">{operadora?.numero_aesa || "Sin número AESA"}</p>
             </div>
           </div>
         </CardContent>
@@ -73,26 +96,6 @@ export default function OperatorPage() {
           ))}
         </div>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Actividad Reciente</CardTitle>
-          <CardDescription>Últimos vuelos y eventos</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                <PlaneTakeoff className="h-5 w-5 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">Vuelo registrado - Proyecto Delta</p>
-                <p className="text-xs text-gray-500">DJI Mavic 3 • 2.5 horas • Hace 2 horas</p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
