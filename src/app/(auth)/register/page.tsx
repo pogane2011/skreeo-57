@@ -4,63 +4,41 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
-import { Plane, Check, Mic, BarChart3, Users, FolderKanban, Shield } from 'lucide-react';
+import Image from 'next/image';
+import { Eye, EyeOff } from 'lucide-react';
 
-// Características para el lado derecho
-const features = [
-  {
-    icon: Mic,
-    title: "Registro por voz",
-    description: "Envía un audio por Telegram y listo"
-  },
-  {
-    icon: BarChart3,
-    title: "TCO automático",
-    description: "Calcula costes por hora de cada UAS"
-  },
-  {
-    icon: Users,
-    title: "Gestión de pilotos",
-    description: "Controla tu equipo y sus certificaciones"
-  },
-  {
-    icon: FolderKanban,
-    title: "Proyectos rentables",
-    description: "Conoce el margen real de cada trabajo"
-  },
-  {
-    icon: Shield,
-    title: "Cumplimiento AESA",
-    description: "Documentación siempre actualizada"
-  }
-];
-
-// Planes resumidos
-const plans = [
-  { name: "DESPEGUE", price: "9,95", highlight: false },
-  { name: "OPERADOR", price: "29,95", highlight: true },
-  { name: "CONTROLADOR", price: "79,95", highlight: false },
+// Frases animadas para el lado derecho
+const phrases = [
+  "Tu TCO te roba ganancias. Cógelas.",
+  "Deja de volar a ciegas en costes",
+  "El margen neto real, al instante",
+  "De logbook a máquina de decisiones",
+  "Manda un audio. Nosotros calculamos."
 ];
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
-    nombre: '',
-    correo: '',
+    email: '',
     password: '',
     confirmPassword: '',
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentFeature, setCurrentFeature] = useState(0);
+  const [currentPhrase, setCurrentPhrase] = useState(0);
+  const [fadeIn, setFadeIn] = useState(true);
   const router = useRouter();
-  const supabase = createClient();
 
-  // Animación de características
+  // Animación de frases
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentFeature((prev) => (prev + 1) % features.length);
-    }, 3500);
+      setFadeIn(false);
+      setTimeout(() => {
+        setCurrentPhrase((prev) => (prev + 1) % phrases.length);
+        setFadeIn(true);
+      }, 500);
+    }, 4000);
     return () => clearInterval(interval);
   }, []);
 
@@ -71,11 +49,12 @@ export default function RegisterPage() {
     });
   };
 
-  const handleEmailRegister = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
+    // Validaciones
     if (formData.password !== formData.confirmPassword) {
       setError('Las contraseñas no coinciden');
       setLoading(false);
@@ -88,19 +67,20 @@ export default function RegisterPage() {
       return;
     }
 
+    const supabase = createClient();
+
     try {
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.correo,
+        email: formData.email,
         password: formData.password,
-        options: {
-          data: {
-            nombre: formData.nombre,
-          },
-        },
       });
 
       if (authError) {
-        setError(authError.message);
+        if (authError.message.includes('already registered')) {
+          setError('Este email ya está registrado');
+        } else {
+          setError(authError.message);
+        }
         return;
       }
 
@@ -114,157 +94,95 @@ export default function RegisterPage() {
     }
   };
 
-  const handleGoogleRegister = async () => {
-    setGoogleLoading(true);
-    setError(null);
-
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/onboarding`,
-        },
-      });
-
-      if (error) {
-        setError(error.message);
-        setGoogleLoading(false);
-      }
-    } catch (err) {
-      setError('Error al conectar con Google');
-      setGoogleLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen flex">
-      {/* Lado Izquierdo - Formulario */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center px-6 sm:px-12 lg:px-16 xl:px-24 py-12 bg-white overflow-y-auto">
+      {/* LADO IZQUIERDO - Formulario */}
+      <div className="w-full lg:w-1/2 flex flex-col justify-center px-6 sm:px-12 lg:px-16 xl:px-24 py-12 bg-white">
         <div className="w-full max-w-md mx-auto">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 mb-10">
-            <div className="h-10 w-10 rounded-xl bg-[#3B82F6] flex items-center justify-center">
-              <Plane className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-2xl font-bold text-[#0F172A]">Skreeo</span>
+          <Link href="/" className="inline-block mb-8">
+            <Image 
+              src="/LogoSkreeo.png" 
+              alt="Skreeo" 
+              width={180} 
+              height={48}
+              className="h-12 w-auto"
+            />
           </Link>
 
           {/* Título */}
-          <div className="mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#0F172A] mb-2">
-              Crea tu cuenta
-            </h1>
-            <p className="text-[#64748B]">
-              14 días de prueba gratis. Sin tarjeta.
-            </p>
-          </div>
+          <h1 className="text-3xl sm:text-4xl font-bold text-[#1F2937] mb-8 leading-tight uppercase">
+            ¡Recupera tu<br />Margen!
+          </h1>
 
           {/* Error */}
           {error && (
-            <div className="skreeo-alert skreeo-alert-error mb-6">
+            <div className="skreeo-alert-error mb-6">
               {error}
             </div>
           )}
 
-          {/* Botón Google */}
-          <button
-            onClick={handleGoogleRegister}
-            disabled={googleLoading}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] font-medium hover:bg-[#F8FAFC] transition-colors disabled:opacity-50 mb-6"
-          >
-            {googleLoading ? (
-              <div className="skreeo-spinner border-[#64748B]" />
-            ) : (
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-              </svg>
-            )}
-            {googleLoading ? 'Conectando...' : 'Registrarse con Google'}
-          </button>
-
-          {/* Separador */}
-          <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[#E2E8F0]"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-[#94A3B8]">o con email</span>
-            </div>
-          </div>
-
           {/* Formulario */}
-          <form onSubmit={handleEmailRegister} className="space-y-4">
+          <form onSubmit={handleRegister} className="space-y-5">
             <div>
-              <label htmlFor="nombre" className="skreeo-label">
-                Nombre completo
-              </label>
               <input
-                id="nombre"
-                name="nombre"
-                type="text"
-                value={formData.nombre}
-                onChange={handleChange}
-                placeholder="Juan Pérez"
-                required
-                className="skreeo-input"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="correo" className="skreeo-label">
-                Email
-              </label>
-              <input
-                id="correo"
-                name="correo"
                 type="email"
-                value={formData.correo}
+                name="email"
+                value={formData.email}
                 onChange={handleChange}
-                placeholder="tu@email.com"
+                placeholder="Ingresa tu email"
                 required
                 className="skreeo-input"
+                disabled={loading}
               />
             </div>
 
-            <div>
-              <label htmlFor="password" className="skreeo-label">
-                Contraseña
-              </label>
+            <div className="relative">
               <input
-                id="password"
+                type={showPassword ? 'text' : 'password'}
                 name="password"
-                type="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Ingresa tu contraseña"
                 required
-                className="skreeo-input"
+                minLength={6}
+                className="skreeo-input pr-12"
+                disabled={loading}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
             </div>
 
-            <div>
-              <label htmlFor="confirmPassword" className="skreeo-label">
-                Confirmar contraseña
-              </label>
+            <div className="relative">
               <input
-                id="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
                 name="confirmPassword"
-                type="password"
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                placeholder="Repite la contraseña"
+                placeholder="Confirma tu contraseña"
                 required
-                className="skreeo-input"
+                minLength={6}
+                className="skreeo-input pr-12"
+                disabled={loading}
               />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
+              >
+                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="skreeo-btn-primary w-full py-3"
+              className="skreeo-btn-primary w-full"
             >
               {loading ? (
                 <>
@@ -272,98 +190,53 @@ export default function RegisterPage() {
                   Creando cuenta...
                 </>
               ) : (
-                'Crear Cuenta'
+                'Crear cuenta'
               )}
             </button>
           </form>
 
-          {/* Términos */}
-          <p className="text-xs text-[#94A3B8] text-center mt-4">
-            Al registrarte, aceptas nuestros{' '}
-            <Link href="/terms" className="text-[#3B82F6] hover:underline">Términos de Servicio</Link>
-            {' '}y{' '}
-            <Link href="/privacy" className="text-[#3B82F6] hover:underline">Política de Privacidad</Link>
+          {/* Link login */}
+          <p className="mt-8 text-center text-[#6B7280]">
+            ¿Ya tienes cuenta?{' '}
+            <Link href="/login" className="text-[#3B82F6] font-medium hover:text-[#2563EB] transition-colors">
+              Iniciar Sesión
+            </Link>
           </p>
 
-          {/* Footer */}
-          <p className="text-center text-[#64748B] text-sm mt-6">
-            ¿Ya tienes cuenta?{' '}
-            <Link href="/login" className="text-[#3B82F6] hover:text-[#2563EB] font-medium">
-              Iniciar Sesión
+          {/* Términos */}
+          <p className="mt-6 text-center">
+            <Link 
+              href="/terms" 
+              className="text-sm text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
+            >
+              Términos y Condiciones
             </Link>
           </p>
         </div>
       </div>
 
-      {/* Lado Derecho - Branding (solo desktop) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#1E3A8A] via-[#3B82F6] to-[#0EA5E9] p-12 xl:p-16 flex-col justify-between relative overflow-hidden">
-        {/* Patrón decorativo */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-10 right-10 w-80 h-80 bg-white rounded-full blur-3xl"></div>
-          <div className="absolute bottom-10 left-10 w-64 h-64 bg-white rounded-full blur-3xl"></div>
-        </div>
-
-        {/* Header */}
-        <div className="relative z-10">
-          <h2 className="text-3xl xl:text-4xl font-bold text-white mb-4">
-            Todo lo que necesitas para gestionar tu flota
+      {/* LADO DERECHO - Frases animadas (solo desktop) */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#1E3A8A] via-[#1E40AF] to-[#0EA5E9] items-center justify-center p-12">
+        <div className="text-center">
+          <h2 
+            className={`text-3xl xl:text-4xl 2xl:text-5xl font-bold text-white leading-tight transition-all duration-500 ${
+              fadeIn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            }`}
+          >
+            {phrases[currentPhrase]}
           </h2>
-          <p className="text-blue-100 text-lg">
-            Únete a cientos de operadores profesionales
-          </p>
-        </div>
-
-        {/* Features animadas */}
-        <div className="relative z-10 flex-1 flex items-center">
-          <div className="space-y-4 w-full">
-            {features.map((feature, index) => {
-              const Icon = feature.icon;
-              const isActive = index === currentFeature;
-              return (
-                <div
-                  key={index}
-                  className={`flex items-center gap-4 p-4 rounded-xl transition-all duration-500 ${
-                    isActive 
-                      ? 'bg-white/20 backdrop-blur scale-105' 
-                      : 'bg-white/5 opacity-60'
-                  }`}
-                >
-                  <div className={`h-12 w-12 rounded-xl flex items-center justify-center transition-colors ${
-                    isActive ? 'bg-white text-[#3B82F6]' : 'bg-white/10 text-white'
-                  }`}>
-                    <Icon className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-white">{feature.title}</p>
-                    <p className="text-sm text-blue-100">{feature.description}</p>
-                  </div>
-                  {isActive && (
-                    <div className="ml-auto">
-                      <Check className="h-5 w-5 text-white" />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Planes */}
-        <div className="relative z-10">
-          <p className="text-sm text-blue-200 mb-3">Planes desde</p>
-          <div className="flex gap-3">
-            {plans.map((plan) => (
+          
+          {/* Indicadores de frase */}
+          <div className="flex items-center justify-center gap-2 mt-8">
+            {phrases.map((_, index) => (
               <div
-                key={plan.name}
-                className={`flex-1 p-3 rounded-xl text-center ${
-                  plan.highlight 
-                    ? 'bg-white text-[#0F172A]' 
-                    : 'bg-white/10 backdrop-blur text-white'
+                key={index}
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  index === currentPhrase 
+                    ? 'w-8 bg-white' 
+                    : 'w-2 bg-white/40'
                 }`}
-              >
-                <p className="text-xs font-medium opacity-80">{plan.name}</p>
-                <p className="text-lg font-bold">{plan.price}€<span className="text-xs font-normal">/mes</span></p>
-              </div>
+              />
             ))}
           </div>
         </div>
