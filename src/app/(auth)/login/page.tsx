@@ -121,6 +121,13 @@ export default function LoginPage() {
               >
                 {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
               </Button>
+              <button 
+  onClick={handleGoogleLogin}
+  className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 rounded-lg py-3 hover:bg-gray-50"
+>
+  <img src="/google-icon.svg" alt="Google" className="w-5 h-5" />
+  Continuar con Google
+</button>
             </form>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
