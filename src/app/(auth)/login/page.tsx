@@ -16,6 +16,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleGoogleLogin = async () => {
+    const supabase = createClient();
+    await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin + '/onboarding' }
+  });
+};
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
