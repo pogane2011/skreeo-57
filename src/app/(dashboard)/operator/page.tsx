@@ -1,14 +1,26 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, Percent, Clock, TrendingUp, Plane, Users, FolderKanban, PlaneTakeoff } from "lucide-react";
+import { 
+  AlertTriangle, 
+  Percent, 
+  Clock, 
+  TrendingUp, 
+  Plane, 
+  Users, 
+  FolderKanban, 
+  PlaneTakeoff,
+  ArrowUpRight,
+  ArrowDownRight,
+  ChevronRight
+} from "lucide-react";
+import Link from "next/link";
 
 export default async function OperatorPage() {
   const supabase = createServerClient(
-  'https://wbrepnefggojyolspxzj.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicmVwbmVmZ2dvanlvbHNweHpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1NzEwMTEsImV4cCI6MjA3OTE0NzAxMX0.XLIXEyMw9k4uZbwI_q2KNd0bleKXJYH7lG2s-nZMTxg',
-  { cookies: { get: (name) => cookies().get(name)?.value } }
-);
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { get: (name) => cookies().get(name)?.value } }
+  );
 
   // Consultar datos reales
   const { data: drones } = await supabase.from('drones').select('*');
@@ -17,87 +29,221 @@ export default async function OperatorPage() {
   const { data: vuelos } = await supabase.from('vuelos').select('*');
   const { data: operadora } = await supabase.from('operadoras').select('*').single();
 
-  const dronesActivos = drones?.filter(d => d.activo)?.length || 0;
+  const uasActivos = drones?.filter(d => d.activo)?.length || 0;
+  const totalUAS = drones?.length || 0;
   const totalPilotos = pilotos?.length || 0;
   const proyectosActivos = proyectos?.length || 0;
   const totalVuelos = vuelos?.length || 0;
 
-  // Calcular TCO promedio
-  const tcoPromedio = drones?.length 
+  // Calcular TCO promedio (COH - Coste por Hora)
+  const cohPromedio = drones?.length 
     ? (drones.reduce((sum, d) => sum + (d.tco_por_hora || 0), 0) / drones.length).toFixed(2)
     : "0.00";
 
-  const stats = [
-    { name: "Alertas Críticas", value: "0", icon: AlertTriangle, color: "text-green-600", bgColor: "bg-green-50" },
-    { name: "Disponibilidad Flota", value: `${dronesActivos > 0 ? Math.round((dronesActivos / (drones?.length || 1)) * 100) : 0}%`, icon: Percent, color: "text-orange-600", bgColor: "bg-orange-50" },
-    { name: "COH Promedio", value: `${tcoPromedio} €/h`, icon: Clock, color: "text-blue-600", bgColor: "bg-blue-50" },
-    { name: "Vida Útil Consumida", value: "0%", icon: TrendingUp, color: "text-purple-600", bgColor: "bg-purple-50" },
-  ];
-
-  const quickStats = [
-    { name: "Drones Activos", value: dronesActivos.toString(), icon: Plane },
-    { name: "Pilotos", value: totalPilotos.toString(), icon: Users },
-    { name: "Proyectos Activos", value: proyectosActivos.toString(), icon: FolderKanban },
-    { name: "Vuelos Total", value: totalVuelos.toString(), icon: PlaneTakeoff },
-  ];
+  // Calcular disponibilidad
+  const disponibilidad = totalUAS > 0 ? Math.round((uasActivos / totalUAS) * 100) : 0;
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard Operadora</h1>
-        <p className="text-gray-500 mt-1">Resumen de tu flota y operaciones</p>
-      </div>
-
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-full bg-blue-100 flex items-center justify-center">
-              <span className="text-xl font-bold text-blue-700">
-                {operadora?.nombre?.substring(0, 2).toUpperCase() || "MI"}
+      {/* Header de página */}
+      <div className="page-header">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="page-title">Dashboard</h1>
+            <p className="page-subtitle">Resumen de tu operación</p>
+          </div>
+          
+          {/* Info Operadora */}
+          <div className="skreeo-card px-4 py-3 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-[#DBEAFE] flex items-center justify-center">
+              <span className="text-sm font-bold text-[#3B82F6]">
+                {operadora?.nombre?.substring(0, 2).toUpperCase() || "OP"}
               </span>
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">{operadora?.nombre || "Mi Operador"}</h2>
-              <p className="text-gray-500">{operadora?.numero_aesa || "Sin número AESA"}</p>
+              <p className="text-sm font-medium text-[#0F172A]">
+                {operadora?.nombre || "Mi Operador"}
+              </p>
+              <p className="text-xs text-[#64748B]">
+                {operadora?.numero_aesa || "Sin número AESA"}
+              </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => (
-          <Card key={stat.name}>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className={`h-12 w-12 rounded-lg ${stat.bgColor} flex items-center justify-center`}>
-                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                  <p className="text-sm text-gray-500">{stat.name}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        </div>
       </div>
 
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumen Rápido</h3>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {quickStats.map((stat) => (
-            <Card key={stat.name}>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <stat.icon className="h-5 w-5 text-gray-400" />
-                  <div>
-                    <p className="text-xl font-semibold text-gray-900">{stat.value}</p>
-                    <p className="text-xs text-gray-500">{stat.name}</p>
+      {/* KPIs Principales */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Alertas */}
+        <div className="kpi-card">
+          <div className="flex items-start justify-between">
+            <div className="kpi-icon kpi-icon-success">
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+            <span className="skreeo-badge skreeo-badge-success">OK</span>
+          </div>
+          <p className="kpi-value">0</p>
+          <p className="kpi-label">Alertas Críticas</p>
+        </div>
+
+        {/* Disponibilidad */}
+        <div className="kpi-card">
+          <div className="flex items-start justify-between">
+            <div className="kpi-icon kpi-icon-warning">
+              <Percent className="h-6 w-6" />
+            </div>
+            {disponibilidad >= 80 ? (
+              <span className="skreeo-badge skreeo-badge-success">Óptimo</span>
+            ) : disponibilidad >= 50 ? (
+              <span className="skreeo-badge skreeo-badge-warning">Medio</span>
+            ) : (
+              <span className="skreeo-badge skreeo-badge-error">Bajo</span>
+            )}
+          </div>
+          <p className="kpi-value">{disponibilidad}%</p>
+          <p className="kpi-label">Disponibilidad Flota</p>
+        </div>
+
+        {/* COH Promedio */}
+        <div className="kpi-card">
+          <div className="flex items-start justify-between">
+            <div className="kpi-icon kpi-icon-info">
+              <Clock className="h-6 w-6" />
+            </div>
+          </div>
+          <p className="kpi-value">{cohPromedio} €/h</p>
+          <p className="kpi-label">COH Promedio</p>
+        </div>
+
+        {/* Vida Útil */}
+        <div className="kpi-card">
+          <div className="flex items-start justify-between">
+            <div className="kpi-icon kpi-icon-purple">
+              <TrendingUp className="h-6 w-6" />
+            </div>
+          </div>
+          <p className="kpi-value">0%</p>
+          <p className="kpi-label">Vida Útil Consumida</p>
+        </div>
+      </div>
+
+      {/* Stats Rápidos + Accesos directos */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Stats Grid */}
+        <div className="lg:col-span-2">
+          <div className="skreeo-card">
+            <div className="skreeo-card-header">
+              <h3 className="skreeo-card-title">Resumen Rápido</h3>
+            </div>
+            <div className="skreeo-card-body">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <Link href="/fleet" className="group p-4 rounded-xl bg-[#F8FAFC] hover:bg-[#EFF6FF] transition-colors">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Plane className="h-5 w-5 text-[#3B82F6]" />
+                    <ChevronRight className="h-4 w-4 text-[#94A3B8] ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <p className="text-2xl font-bold text-[#0F172A]">{uasActivos}</p>
+                  <p className="text-sm text-[#64748B]">UAS Activos</p>
+                </Link>
+
+                <Link href="/pilots" className="group p-4 rounded-xl bg-[#F8FAFC] hover:bg-[#EFF6FF] transition-colors">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Users className="h-5 w-5 text-[#10B981]" />
+                    <ChevronRight className="h-4 w-4 text-[#94A3B8] ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <p className="text-2xl font-bold text-[#0F172A]">{totalPilotos}</p>
+                  <p className="text-sm text-[#64748B]">Pilotos</p>
+                </Link>
+
+                <Link href="/projects" className="group p-4 rounded-xl bg-[#F8FAFC] hover:bg-[#EFF6FF] transition-colors">
+                  <div className="flex items-center gap-3 mb-2">
+                    <FolderKanban className="h-5 w-5 text-[#8B5CF6]" />
+                    <ChevronRight className="h-4 w-4 text-[#94A3B8] ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <p className="text-2xl font-bold text-[#0F172A]">{proyectosActivos}</p>
+                  <p className="text-sm text-[#64748B]">Proyectos Activos</p>
+                </Link>
+
+                <Link href="/flights" className="group p-4 rounded-xl bg-[#F8FAFC] hover:bg-[#EFF6FF] transition-colors">
+                  <div className="flex items-center gap-3 mb-2">
+                    <PlaneTakeoff className="h-5 w-5 text-[#F59E0B]" />
+                    <ChevronRight className="h-4 w-4 text-[#94A3B8] ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <p className="text-2xl font-bold text-[#0F172A]">{totalVuelos}</p>
+                  <p className="text-sm text-[#64748B]">Vuelos Total</p>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Acciones Rápidas */}
+        <div className="skreeo-card">
+          <div className="skreeo-card-header">
+            <h3 className="skreeo-card-title">Acciones Rápidas</h3>
+          </div>
+          <div className="skreeo-card-body space-y-3">
+            <Link 
+              href="/flights/new"
+              className="flex items-center gap-3 p-3 rounded-lg border border-[#E2E8F0] hover:border-[#3B82F6] hover:bg-[#EFF6FF] transition-all group"
+            >
+              <div className="h-10 w-10 rounded-lg bg-[#DBEAFE] flex items-center justify-center">
+                <PlaneTakeoff className="h-5 w-5 text-[#3B82F6]" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-[#0F172A]">Registrar Vuelo</p>
+                <p className="text-xs text-[#64748B]">Añadir nueva operación</p>
+              </div>
+              <ChevronRight className="h-5 w-5 text-[#94A3B8] group-hover:text-[#3B82F6]" />
+            </Link>
+
+            <Link 
+              href="/fleet/new"
+              className="flex items-center gap-3 p-3 rounded-lg border border-[#E2E8F0] hover:border-[#3B82F6] hover:bg-[#EFF6FF] transition-all group"
+            >
+              <div className="h-10 w-10 rounded-lg bg-[#D1FAE5] flex items-center justify-center">
+                <Plane className="h-5 w-5 text-[#10B981]" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-[#0F172A]">Añadir UAS</p>
+                <p className="text-xs text-[#64748B]">Registrar nuevo equipo</p>
+              </div>
+              <ChevronRight className="h-5 w-5 text-[#94A3B8] group-hover:text-[#3B82F6]" />
+            </Link>
+
+            <Link 
+              href="/projects/new"
+              className="flex items-center gap-3 p-3 rounded-lg border border-[#E2E8F0] hover:border-[#3B82F6] hover:bg-[#EFF6FF] transition-all group"
+            >
+              <div className="h-10 w-10 rounded-lg bg-[#EDE9FE] flex items-center justify-center">
+                <FolderKanban className="h-5 w-5 text-[#8B5CF6]" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-[#0F172A]">Nuevo Proyecto</p>
+                <p className="text-xs text-[#64748B]">Crear trabajo</p>
+              </div>
+              <ChevronRight className="h-5 w-5 text-[#94A3B8] group-hover:text-[#3B82F6]" />
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Info KPIs */}
+      <div className="skreeo-card">
+        <div className="skreeo-card-body">
+          <div className="flex items-start gap-3">
+            <div className="h-8 w-8 rounded-lg bg-[#DBEAFE] flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="h-4 w-4 text-[#3B82F6]" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-[#0F172A]">Acerca de estos KPIs</p>
+              <p className="text-sm text-[#64748B] mt-1">
+                <strong>COH (Coste por Hora):</strong> Calculado automáticamente basado en depreciación, 
+                mantenimiento y uso de cada UAS. 
+                <strong> Disponibilidad:</strong> Porcentaje de UAS activos respecto al total de la flota.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
