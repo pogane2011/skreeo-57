@@ -5,45 +5,76 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 
-export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+export default function RegisterPage() {
+  const [formData, setFormData] = useState({
+    nombre: '',
+    correo: '',
+    password: '',
+    confirmPassword: '',
+  });
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  // Login con Email/Password
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  // Registro con Email/Password
+  const handleEmailRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
+    // Validar passwords
+    if (formData.password !== formData.confirmPassword) {
+      setError('Las contraseñas no coinciden');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres');
+      setLoading(false);
+      return;
+    }
+
     const supabase = createClient();
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      // 1. Crear usuario en Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.correo,
+        password: formData.password,
+        options: {
+          data: {
+            nombre: formData.nombre,
+          },
+        },
       });
 
-      if (error) {
-        setError(error.message);
+      if (authError) {
+        setError(authError.message);
         return;
       }
 
-      if (data.user) {
-        router.push('/dashboard');
+      if (authData.user) {
+        // Redirigir a onboarding o verificación de email
+        router.push('/onboarding');
       }
     } catch (err) {
-      setError('Error al iniciar sesión');
+      setError('Error al crear la cuenta');
     } finally {
       setLoading(false);
     }
   };
 
-  // Login con Google
-  const handleGoogleLogin = async () => {
+  // Registro con Google
+  const handleGoogleRegister = async () => {
     setGoogleLoading(true);
     setError(null);
 
@@ -83,7 +114,7 @@ export default function LoginPage() {
         {/* Card */}
         <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-xl border border-white/10">
           <h2 className="text-2xl font-semibold text-white mb-6 text-center">
-            Iniciar Sesión
+            Crear Cuenta
           </h2>
 
           {/* Error */}
@@ -95,7 +126,7 @@ export default function LoginPage() {
 
           {/* Botón Google */}
           <button
-            onClick={handleGoogleLogin}
+            onClick={handleGoogleRegister}
             disabled={googleLoading}
             className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 text-gray-800 font-medium rounded-lg py-3 px-4 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-6"
           >
@@ -121,7 +152,7 @@ export default function LoginPage() {
                 />
               </svg>
             )}
-            {googleLoading ? 'Conectando...' : 'Continuar con Google'}
+            {googleLoading ? 'Conectando...' : 'Registrarse con Google'}
           </button>
 
           {/* Separador */}
@@ -135,16 +166,33 @@ export default function LoginPage() {
           </div>
 
           {/* Form Email */}
-          <form onSubmit={handleEmailLogin} className="space-y-4">
+          <form onSubmit={handleEmailRegister} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="nombre" className="block text-sm font-medium text-slate-300 mb-2">
+                Nombre completo
+              </label>
+              <input
+                id="nombre"
+                name="nombre"
+                type="text"
+                value={formData.nombre}
+                onChange={handleChange}
+                placeholder="Juan Pérez"
+                required
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="correo" className="block text-sm font-medium text-slate-300 mb-2">
                 Email
               </label>
               <input
-                id="email"
+                id="correo"
+                name="correo"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={formData.correo}
+                onChange={handleChange}
                 placeholder="tu@email.com"
                 required
                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
@@ -157,9 +205,26 @@ export default function LoginPage() {
               </label>
               <input
                 id="password"
+                name="password"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="••••••••"
+                required
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-300 mb-2">
+                Confirmar contraseña
+              </label>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
                 placeholder="••••••••"
                 required
                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
@@ -174,30 +239,32 @@ export default function LoginPage() {
               {loading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Entrando...
+                  Creando cuenta...
                 </>
               ) : (
-                'Iniciar Sesión'
+                'Crear Cuenta'
               )}
             </button>
           </form>
 
-          {/* Links */}
-          <div className="mt-6 text-center space-y-2">
-            <Link
-              href="/forgot-password"
-              className="text-sm text-slate-400 hover:text-sky-400 transition-colors"
-            >
-              ¿Olvidaste tu contraseña?
+          {/* Términos */}
+          <p className="text-xs text-slate-500 text-center mt-4">
+            Al registrarte, aceptas nuestros{' '}
+            <Link href="/terms" className="text-sky-400 hover:underline">
+              Términos de Servicio
+            </Link>{' '}
+            y{' '}
+            <Link href="/privacy" className="text-sky-400 hover:underline">
+              Política de Privacidad
             </Link>
-          </div>
+          </p>
         </div>
 
         {/* Footer */}
         <p className="text-center text-slate-500 text-sm mt-6">
-          ¿No tienes cuenta?{' '}
-          <Link href="/pricing" className="text-sky-400 hover:text-sky-300 transition-colors">
-            Ver planes y precios
+          ¿Ya tienes cuenta?{' '}
+          <Link href="/login" className="text-sky-400 hover:text-sky-300 transition-colors">
+            Iniciar Sesión
           </Link>
         </p>
       </div>
