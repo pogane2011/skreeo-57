@@ -37,24 +37,12 @@ export default function OnboardingPage() {
     });
   };
 
-  const handleNext = () => {
-    setStep(step + 1);
-  };
-
-  const handleBack = () => {
-    setStep(step - 1);
-  };
+  const handleNext = () => setStep(step + 1);
+  const handleBack = () => setStep(step - 1);
 
   const handleFinish = async () => {
     setSaving(true);
-    
-    // Aquí guardarías los datos en Supabase
-    // Por ahora redirigimos al dashboard
-    
     try {
-      // Ejemplo: actualizar perfil del usuario
-      // await supabase.from('operadoras').insert({...})
-      
       router.push('/dashboard');
     } catch (error) {
       console.error('Error guardando datos:', error);
@@ -64,21 +52,21 @@ export default function OnboardingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-sky-400 border-t-transparent rounded-full animate-spin" />
+      <div className="skreeo-page-center">
+        <div className="skreeo-spinner border-[#3B82F6] w-8 h-8" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+    <div className="skreeo-page-center">
       <div className="w-full max-w-lg">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            <span className="text-sky-400">Skreeo</span>
+          <h1 className="text-4xl font-bold text-skreeo-text mb-2">
+            <span className="text-skreeo-primary">Skreeo</span>
           </h1>
-          <p className="text-slate-400">Configuración inicial</p>
+          <p className="text-skreeo-muted">Configuración inicial</p>
         </div>
 
         {/* Progress */}
@@ -86,37 +74,34 @@ export default function OnboardingPage() {
           {[1, 2, 3].map((s) => (
             <div
               key={s}
-              className={`w-3 h-3 rounded-full transition-all ${
+              className={`skreeo-progress-dot ${
                 s === step
-                  ? 'bg-sky-400 scale-125'
+                  ? 'skreeo-progress-dot-active'
                   : s < step
-                  ? 'bg-sky-600'
-                  : 'bg-slate-600'
+                  ? 'skreeo-progress-dot-completed'
+                  : 'skreeo-progress-dot-pending'
               }`}
             />
           ))}
         </div>
 
         {/* Card */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-xl border border-white/10">
+        <div className="skreeo-auth-card max-w-lg">
           
           {/* Step 1: Bienvenida */}
           {step === 1 && (
             <div className="text-center">
               <div className="text-6xl mb-6">🚁</div>
-              <h2 className="text-2xl font-semibold text-white mb-4">
+              <h2 className="text-2xl font-semibold text-skreeo-text mb-4">
                 ¡Bienvenido a Skreeo!
               </h2>
-              <p className="text-slate-300 mb-2">
-                Hola <span className="text-sky-400 font-medium">{user?.email}</span>
+              <p className="text-skreeo-muted mb-2">
+                Hola <span className="text-skreeo-primary font-medium">{user?.email}</span>
               </p>
-              <p className="text-slate-400 mb-8">
+              <p className="text-skreeo-light mb-8">
                 Vamos a configurar tu cuenta en unos sencillos pasos.
               </p>
-              <button
-                onClick={handleNext}
-                className="w-full bg-sky-500 hover:bg-sky-600 text-white font-medium rounded-lg py-3 px-4 transition-all"
-              >
+              <button onClick={handleNext} className="skreeo-btn-primary w-full">
                 Empezar configuración
               </button>
             </div>
@@ -125,68 +110,59 @@ export default function OnboardingPage() {
           {/* Step 2: Datos operadora */}
           {step === 2 && (
             <div>
-              <h2 className="text-2xl font-semibold text-white mb-2 text-center">
+              <h2 className="text-2xl font-semibold text-skreeo-text mb-2 text-center">
                 Datos de la operadora
               </h2>
-              <p className="text-slate-400 mb-6 text-center text-sm">
+              <p className="text-skreeo-light mb-6 text-center text-sm">
                 Esta información aparecerá en tus informes y documentos
               </p>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Nombre de la operadora *
-                  </label>
+                  <label className="skreeo-label">Nombre de la operadora *</label>
                   <input
                     name="nombre_operadora"
                     type="text"
                     value={formData.nombre_operadora}
                     onChange={handleChange}
                     placeholder="Mi Empresa de Drones S.L."
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+                    className="skreeo-input"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    CIF/NIF (opcional)
-                  </label>
+                  <label className="skreeo-label">CIF/NIF (opcional)</label>
                   <input
                     name="cif"
                     type="text"
                     value={formData.cif}
                     onChange={handleChange}
                     placeholder="B12345678"
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+                    className="skreeo-input"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Teléfono de contacto
-                  </label>
+                  <label className="skreeo-label">Teléfono de contacto</label>
                   <input
                     name="telefono"
                     type="tel"
                     value={formData.telefono}
                     onChange={handleChange}
                     placeholder="+34 600 000 000"
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+                    className="skreeo-input"
                   />
                 </div>
               </div>
 
               <div className="flex gap-3 mt-8">
-                <button
-                  onClick={handleBack}
-                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-medium rounded-lg py-3 px-4 transition-all"
-                >
+                <button onClick={handleBack} className="skreeo-btn-secondary flex-1">
                   Atrás
                 </button>
                 <button
                   onClick={handleNext}
                   disabled={!formData.nombre_operadora}
-                  className="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-medium rounded-lg py-3 px-4 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="skreeo-btn-primary flex-1"
                 >
                   Siguiente
                 </button>
@@ -198,47 +174,44 @@ export default function OnboardingPage() {
           {step === 3 && (
             <div className="text-center">
               <div className="text-6xl mb-6">📱</div>
-              <h2 className="text-2xl font-semibold text-white mb-4">
+              <h2 className="text-2xl font-semibold text-skreeo-text mb-4">
                 Vincula tu Telegram
               </h2>
-              <p className="text-slate-400 mb-6">
+              <p className="text-skreeo-light mb-6">
                 Registra tus vuelos enviando mensajes de voz al bot de Telegram
               </p>
 
-              <div className="bg-white/5 rounded-lg p-4 mb-6">
-                <p className="text-slate-300 text-sm mb-2">
+              <div className="skreeo-card p-4 mb-6 text-left">
+                <p className="text-skreeo-muted text-sm mb-2">
                   1. Abre Telegram y busca:
                 </p>
-                <p className="text-sky-400 font-mono font-bold text-lg mb-4">
+                <p className="text-skreeo-primary font-mono font-bold text-lg mb-4 text-center">
                   @SkreeoBot
                 </p>
-                <p className="text-slate-300 text-sm mb-2">
+                <p className="text-skreeo-muted text-sm mb-2">
                   2. Envía este comando:
                 </p>
-                <div className="bg-slate-800 rounded px-3 py-2 font-mono text-sky-300">
+                <div className="bg-[#F1F5F9] rounded px-3 py-2 font-mono text-skreeo-primary text-center">
                   /vincular
                 </div>
               </div>
 
-              <p className="text-slate-500 text-xs mb-6">
+              <p className="text-skreeo-light text-xs mb-6">
                 Puedes hacer esto más tarde desde Ajustes
               </p>
 
               <div className="flex gap-3">
-                <button
-                  onClick={handleBack}
-                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-medium rounded-lg py-3 px-4 transition-all"
-                >
+                <button onClick={handleBack} className="skreeo-btn-secondary flex-1">
                   Atrás
                 </button>
                 <button
                   onClick={handleFinish}
                   disabled={saving}
-                  className="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-medium rounded-lg py-3 px-4 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="skreeo-btn-primary flex-1"
                 >
                   {saving ? (
                     <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <div className="skreeo-spinner border-white" />
                       Guardando...
                     </>
                   ) : (
