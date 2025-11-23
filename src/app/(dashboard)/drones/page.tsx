@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, Percent, Clock, TrendingUp, Plane, Users, FolderKanban, PlaneTakeoff } from "lucide-react";
+export const dynamic = 'force-dynamic';
 
 export default async function OperatorPage() {
   const supabase = createServerClient(
