@@ -25,6 +25,8 @@ import {
   X
 } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 // Tipos
 interface UAS {
   id_drone: number;
