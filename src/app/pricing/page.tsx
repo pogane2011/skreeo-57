@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -82,7 +82,7 @@ const featureLabels = {
   funcAvanzadas: 'Funciones avanzadas',
 };
 
-export default function PricingPage() {
+function PricingContent() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -140,7 +140,7 @@ export default function PricingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <Link href="/">
-              <Image src="/LogoSkreeo.png" alt="Skreeo" width={140} height={40} className="h-10 w-auto" />
+              <span className="text-2xl font-bold text-[#3B82F6]">Skreeo</span>
             </Link>
             <Link href="/login" className="text-[#6B7280] hover:text-[#1F2937] font-medium">
               Iniciar Sesión
@@ -293,5 +293,17 @@ export default function PricingPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[#3B82F6]" />
+      </div>
+    }>
+      <PricingContent />
+    </Suspense>
   );
 }
