@@ -324,7 +324,7 @@ function OnboardingContent() {
                   1. Abre Telegram y busca:
                 </p>
                 <p className="text-2xl font-bold text-[#3B82F6] mb-6">
-                  @SkreeoBot
+                  @Skreeo_Bot
                 </p>
 
                 <p className="text-sm text-[#6B7280] mb-3">
