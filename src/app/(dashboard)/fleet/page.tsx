@@ -10,6 +10,8 @@ import {
   ChevronRight
 } from "lucide-react";
 
+export const dynamic = 'force-dynamic';
+
 export default async function FleetPage() {
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
