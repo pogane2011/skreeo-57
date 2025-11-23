@@ -5,6 +5,8 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
   try {
     const cookieStore = cookies();
