@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, User, Mail, Phone, Award } from "lucide-react";
+export const dynamic = 'force-dynamic';
 
 export default async function PilotsPage() {
   const supabase = createServerClient(
