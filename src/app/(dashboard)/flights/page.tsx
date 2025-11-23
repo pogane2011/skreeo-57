@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, PlaneTakeoff, Calendar, Clock } from "lucide-react";
+export const dynamic = 'force-dynamic';
 
 export default async function FlightsPage() {
   const supabase = createServerClient(
