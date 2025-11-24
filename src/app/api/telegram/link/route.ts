@@ -1,87 +1,113 @@
-// src/app/api/telegram/link/route.ts
-// Endpoint que el bot de Telegram llama para vincular cuenta
-
-import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
 
+// Cliente con service_role para poder actualizar la tabla
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Secret para autenticar las llamadas del bot
-const BOT_SECRET = process.env.TELEGRAM_BOT_SECRET || 'skreeo_bot_secret_2025';
-
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { code, telegramChatId, telegramUsername, botSecret } = await req.json();
+    const { code, telegramChatId, telegramUsername, botSecret } = await request.json();
 
-    // Verificar secreto del bot
-    if (botSecret !== BOT_SECRET) {
+    // Verificar botSecret
+    if (botSecret !== process.env.TELEGRAM_BOT_SECRET) {
       return NextResponse.json(
-        { error: 'No autorizado' },
+        { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
-    // Validar parámetros
+    // Validar que vengan los datos necesarios
     if (!code || !telegramChatId) {
       return NextResponse.json(
-        { error: 'Faltan parámetros: code y telegramChatId requeridos' },
+        { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // Buscar código válido
+    // Buscar el código de vinculación
     const { data: linkCode, error: codeError } = await supabase
       .from('telegram_link_codes')
       .select('*')
-      .eq('code', code.toUpperCase())
+      .eq('code', code)
       .eq('used', false)
       .gt('expires_at', new Date().toISOString())
       .single();
 
     if (codeError || !linkCode) {
       return NextResponse.json(
-        { error: 'Código inválido o expirado' },
+        { error: 'Invalid or expired code' },
         { status: 400 }
       );
     }
 
-    // Actualizar piloto con telegram_chat_id
-    const { error: updateError } = await supabase
+    // Actualizar o crear piloto con telegram_chat_id
+    const { data: existingPilot } = await supabase
       .from('pilotos')
-      .upsert({
-        id_piloto: linkCode.user_id,
-        telegram_chat_id: telegramChatId.toString(),
-        telegram_username: telegramUsername || null,
-      }, {
-        onConflict: 'id_piloto',
-      });
+      .select('id_piloto')
+      .eq('id_piloto', linkCode.user_id)
+      .single();
 
-    if (updateError) {
-      console.error('Error updating piloto:', updateError);
-      return NextResponse.json(
-        { error: 'Error vinculando cuenta' },
-        { status: 500 }
-      );
+    if (existingPilot) {
+      // Actualizar piloto existente con las columnas CORRECTAS
+      const { error: updateError } = await supabase
+        .from('pilotos')
+        .update({
+          id_telegram: telegramChatId.toString(),
+          nombre_telegram: telegramUsername || null,
+          telegram_verificado: true,
+        })
+        .eq('id_piloto', linkCode.user_id);
+
+      if (updateError) {
+        console.error('Error updating pilot:', updateError);
+        return NextResponse.json(
+          { error: 'Failed to link Telegram account' },
+          { status: 500 }
+        );
+      }
+    } else {
+      // Crear nuevo piloto si no existe
+      const { data: userData } = await supabase.auth.admin.getUserById(linkCode.user_id);
+      
+      const { error: insertError } = await supabase
+        .from('pilotos')
+        .insert({
+          id_piloto: linkCode.user_id,
+          nombre: userData.user?.user_metadata?.nombre || userData.user?.email || 'Usuario',
+          email: userData.user?.email || '',
+          id_telegram: telegramChatId.toString(),
+          nombre_telegram: telegramUsername || null,
+          telegram_verificado: true,
+          plan_activo: true,
+          vuelos_restantes: 99999,
+        });
+
+      if (insertError) {
+        console.error('Error creating pilot:', insertError);
+        return NextResponse.json(
+          { error: 'Failed to create pilot' },
+          { status: 500 }
+        );
+      }
     }
 
-    // Marcar código como usado
+    // Marcar el código como usado
     await supabase
       .from('telegram_link_codes')
       .update({ used: true })
-      .eq('id', linkCode.id);
+      .eq('code', code);
 
     return NextResponse.json({
       success: true,
-      message: 'Telegram vinculado correctamente',
+      message: 'Telegram account linked successfully',
     });
-
-  } catch (error: any) {
-    console.error('Error linking telegram:', error);
+  } catch (error) {
+    console.error('Error in telegram link:', error);
     return NextResponse.json(
-      { error: error.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
