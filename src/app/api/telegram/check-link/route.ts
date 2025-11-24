@@ -1,55 +1,54 @@
-// src/app/api/telegram/check-link/route.ts
-// Verifica si el usuario ya vinculó su Telegram
-
-import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: Request) {
+export async function GET(request: NextRequest) {
   try {
+    // Crear cliente con las cookies del usuario
     const cookieStore = cookies();
-    const supabase = createServerClient(
+    const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-        },
-      }
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    // Verificar usuario autenticado
+    // Obtener usuario autenticado
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json(
-        { error: 'No autorizado' },
+        { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
-    // Verificar si el piloto tiene telegram_chat_id
-    const { data: piloto } = await supabase
+    // Buscar piloto por user_id con las columnas CORRECTAS
+    const { data: piloto, error: pilotoError } = await supabase
       .from('pilotos')
-      .select('telegram_chat_id')
+      .select('id_telegram, nombre_telegram, telegram_verificado')
       .eq('id_piloto', user.id)
       .single();
 
-    const isLinked = !!piloto?.telegram_chat_id;
+    if (pilotoError || !piloto) {
+      return NextResponse.json({
+        linked: false,
+        telegramChatId: null,
+      });
+    }
+
+    // Verificar si tiene Telegram vinculado
+    const isLinked = piloto.telegram_verificado === true && piloto.id_telegram !== null;
 
     return NextResponse.json({
       linked: isLinked,
-      telegramChatId: piloto?.telegram_chat_id || null,
+      telegramChatId: piloto.id_telegram,
+      telegramUsername: piloto.nombre_telegram,
     });
-
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error checking telegram link:', error);
     return NextResponse.json(
-      { error: error.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
