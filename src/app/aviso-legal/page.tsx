@@ -178,16 +178,6 @@ export default function AvisoLegalPage() {
             </p>
 
           </div>
-
-        {/* Botón volver */}
-        <div className="mt-8 text-center">
-          <Link 
-            href="/" 
-            className="inline-flex items-center gap-2 text-[#6B7280] hover:text-[#1F2937] font-medium transition-colors"
-          >
-            ← Volver a la página principal
-          </Link>
-        </div>
       </main>
 
       <Footer />
