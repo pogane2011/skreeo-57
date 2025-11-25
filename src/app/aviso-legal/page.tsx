@@ -168,15 +168,6 @@ export default function AvisoLegalPage() {
                 </p>
               </div>
             </div>
-
-            <p className="text-sm text-[#9CA3AF] mt-8 pt-6 border-t border-[#E5E7EB]">
-              Última actualización: {new Date().toLocaleDateString('es-ES', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
-            </p>
-
           </div>
       </main>
 
