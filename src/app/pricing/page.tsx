@@ -1,309 +1,378 @@
 'use client';
 
-import { Suspense, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { Check, X, Loader2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { Check, Loader2, ArrowRight } from 'lucide-react';
 
-// Planes con Price IDs de Stripe
-const plans = [
-  {
-    id: 'despegue',
-    name: 'DESPEGUE',
-    description: 'Para pilotos individuales',
-    priceMonthly: 14.95,
-    priceYearly: 164.45,
-    priceIdMonthly: 'price_1SVt3bHcyKksEXpEej7xdg4P',
-    priceIdYearly: 'price_1SVt3bHcyKksEXpE528LrsBy',
-    features: {
-      vuelos: 'Ilimitados',
-      pilotos: '1',
-      operadores: '1',
-      proyectos: '3',
-      dronesTco: '1',
-      accesoriosTco: '3',
-      alertas: true,
-      funcAvanzadas: false,
-    },
-    popular: false,
-  },
-  {
-    id: 'operador',
-    name: 'OPERADOR',
-    description: 'Para pequeñas operadoras',
-    priceMonthly: 39.95,
-    priceYearly: 439.45,
-    priceIdMonthly: 'price_1SVsN3HcyKksEXpEBfACl6US',
-    priceIdYearly: 'price_1SVsNeHcyKksEXpEd22ffINw',
-    features: {
-      vuelos: 'Ilimitados',
-      pilotos: '3',
-      operadores: '1',
-      proyectos: '15',
-      dronesTco: '3',
-      accesoriosTco: '10',
-      alertas: true,
-      funcAvanzadas: true,
-    },
-    popular: true,
-  },
-  {
-    id: 'controlador',
-    name: 'CONTROLADOR',
-    description: 'Para grandes operaciones',
-    priceMonthly: 99.95,
-    priceYearly: 1099.45,
-    priceIdMonthly: 'price_1SVsOnHcyKksEXpEQgN8VwHy',
-    priceIdYearly: 'price_1SVsPQHcyKksEXpEAzZJh3q4',
-    features: {
-      vuelos: 'Ilimitados',
-      pilotos: 'Ilimitados',
-      operadores: 'Ilimitados',
-      proyectos: 'Ilimitados',
-      dronesTco: 'Ilimitados',
-      accesoriosTco: 'Ilimitados',
-      alertas: true,
-      funcAvanzadas: true,
-    },
-    popular: false,
-  },
-];
-
-const featureLabels = {
-  vuelos: 'Vuelos',
-  pilotos: 'Pilotos',
-  operadores: 'Operadores',
-  proyectos: 'Proyectos',
-  dronesTco: 'Drones con TCO',
-  accesoriosTco: 'Accesorios TCO',
-  alertas: 'Alertas depreciación',
-  funcAvanzadas: 'Funciones avanzadas',
-};
-
-function PricingContent() {
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
-  const [loading, setLoading] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const canceled = searchParams.get('canceled');
-
-  const handleSelectPlan = async (plan: typeof plans[0]) => {
-    setLoading(plan.id);
-    setError(null);
-
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      // Si no está logueado, redirigir a register con el plan seleccionado
-      router.push(`/register?plan=${plan.id}&cycle=${billingCycle}`);
-      return;
-    }
-
-    // Si está logueado, crear checkout directamente
-    try {
-      const priceId = billingCycle === 'monthly' ? plan.priceIdMonthly : plan.priceIdYearly;
-
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          priceId,
-          planId: plan.id,
-          billingCycle,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.error) {
-        setError(data.error);
-        setLoading(null);
-        return;
-      }
-
-      // Redirigir a Stripe Checkout
-      window.location.href = data.url;
-    } catch (err) {
-      setError('Error al procesar. Inténtalo de nuevo.');
-      setLoading(null);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-[#F8FAFC]">
-      {/* Header */}
-      <header className="bg-white border-b border-[#E5E7EB]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/">
-              <span className="text-2xl font-bold text-[#3B82F6]">Skreeo</span>
-            </Link>
-            <Link href="/login" className="text-[#6B7280] hover:text-[#1F2937] font-medium">
-              Iniciar Sesión
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Título */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-[#1F2937] mb-4">
-            Elige tu plan
-          </h1>
-          <p className="text-lg text-[#6B7280] mb-8">
-            14 días de prueba gratis. Cancela cuando quieras.
-          </p>
-
-          {/* Toggle mensual/anual */}
-          <div className="inline-flex items-center gap-4 bg-white p-1 rounded-lg border border-[#E5E7EB]">
-            <button
-              onClick={() => setBillingCycle('monthly')}
-              className={`px-4 py-2 rounded-md font-medium transition-all ${
-                billingCycle === 'monthly'
-                  ? 'bg-[#3B82F6] text-white'
-                  : 'text-[#6B7280] hover:text-[#1F2937]'
-              }`}
-            >
-              Mensual
-            </button>
-            <button
-              onClick={() => setBillingCycle('yearly')}
-              className={`px-4 py-2 rounded-md font-medium transition-all ${
-                billingCycle === 'yearly'
-                  ? 'bg-[#3B82F6] text-white'
-                  : 'text-[#6B7280] hover:text-[#1F2937]'
-              }`}
-            >
-              Anual <span className="text-xs ml-1 text-green-600">-1 mes gratis</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Error/Canceled */}
-        {canceled && (
-          <div className="max-w-md mx-auto mb-8 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg text-center">
-            Proceso cancelado. Selecciona un plan para continuar.
-          </div>
-        )}
-        {error && (
-          <div className="max-w-md mx-auto mb-8 skreeo-alert-error text-center">
-            {error}
-          </div>
-        )}
-
-        {/* Planes */}
-        <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
-          {plans.map((plan) => (
-            <div
-              key={plan.id}
-              className={`relative bg-white rounded-2xl border-2 transition-all ${
-                plan.popular
-                  ? 'border-[#3B82F6] shadow-lg scale-105'
-                  : 'border-[#E5E7EB] hover:border-[#3B82F6]/50'
-              }`}
-            >
-              {plan.popular && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <span className="bg-[#3B82F6] text-white text-sm font-bold px-4 py-1 rounded-full">
-                    POPULAR
-                  </span>
-                </div>
-              )}
-
-              <div className="p-6 lg:p-8">
-                {/* Header del plan */}
-                <div className="text-center mb-6">
-                  <h3 className="text-xl font-bold text-[#1F2937] mb-1">{plan.name}</h3>
-                  <p className="text-sm text-[#6B7280]">{plan.description}</p>
-                </div>
-
-                {/* Precio */}
-                <div className="text-center mb-6">
-                  <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-4xl font-bold text-[#1F2937]">
-                      {billingCycle === 'monthly'
-                        ? plan.priceMonthly.toFixed(2)
-                        : (plan.priceYearly / 12).toFixed(2)}€
-                    </span>
-                    <span className="text-[#6B7280]">/mes</span>
-                  </div>
-                  {billingCycle === 'yearly' && (
-                    <p className="text-sm text-[#6B7280] mt-1">
-                      Facturado {plan.priceYearly.toFixed(2)}€/año
-                    </p>
-                  )}
-                </div>
-
-                {/* Botón */}
-                <button
-                  onClick={() => handleSelectPlan(plan)}
-                  disabled={loading !== null}
-                  className={`w-full py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
-                    plan.popular
-                      ? 'bg-[#3B82F6] hover:bg-[#2563EB] text-white'
-                      : 'bg-white border-2 border-[#3B82F6] text-[#3B82F6] hover:bg-[#3B82F6] hover:text-white'
-                  } disabled:opacity-50`}
-                >
-                  {loading === plan.id ? (
-                    <>
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                      Procesando...
-                    </>
-                  ) : (
-                    'Empezar prueba gratis'
-                  )}
-                </button>
-
-                {/* Features */}
-                <ul className="mt-6 space-y-3">
-                  {Object.entries(plan.features).map(([key, value]) => (
-                    <li key={key} className="flex items-center gap-3">
-                      {typeof value === 'boolean' ? (
-                        value ? (
-                          <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                        ) : (
-                          <X className="h-5 w-5 text-gray-300 flex-shrink-0" />
-                        )
-                      ) : (
-                        <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                      )}
-                      <span className="text-sm text-[#6B7280]">
-                        {typeof value === 'boolean'
-                          ? featureLabels[key as keyof typeof featureLabels]
-                          : `${value} ${featureLabels[key as keyof typeof featureLabels].toLowerCase()}`}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* FAQ o info adicional */}
-        <div className="mt-16 text-center">
-          <p className="text-[#6B7280]">
-            ¿Dudas? <Link href="/contact" className="text-[#3B82F6] font-medium hover:underline">Contáctanos</Link>
-          </p>
-        </div>
-      </main>
-    </div>
-  );
+interface Plan {
+  id: string;
+  name: string;
+  price_monthly: number;
+  price_yearly: number;
+  stripe_price_monthly: string;
+  stripe_price_yearly: string;
+  limit_vuelos: number;
+  limit_pilotos: number;
+  limit_operadores: number;
+  limit_proyectos: number;
+  limit_drones_tco: number;
+  limit_accesorios_tco: number;
+  has_alertas: boolean;
+  has_func_avanzadas: boolean;
 }
 
 export default function PricingPage() {
-  return (
-    <Suspense fallback={
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const response = await fetch('/api/plans');
+        const data = await response.json();
+        
+        if (data.plans) {
+          setPlans(data.plans);
+        }
+      } catch (error) {
+        console.error('Error loading plans:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPlans();
+  }, []);
+
+  const formatPrice = (centimos: number) => {
+    return (centimos / 100).toFixed(2);
+  };
+
+  const getPlanFeatures = (plan: Plan) => {
+    const features = [
+      {
+        text: plan.limit_vuelos === 99999 ? 'Vuelos ilimitados' : `${plan.limit_vuelos} vuelos/mes`,
+        included: true
+      },
+      {
+        text: plan.limit_pilotos === 99999 ? 'Pilotos ilimitados' : `${plan.limit_pilotos} ${plan.limit_pilotos === 1 ? 'piloto' : 'pilotos'}`,
+        included: true
+      },
+      {
+        text: plan.limit_operadores === 99999 ? 'Operadores ilimitados' : `${plan.limit_operadores} ${plan.limit_operadores === 1 ? 'operador' : 'operadores'}`,
+        included: true
+      },
+      {
+        text: plan.limit_proyectos === 99999 ? 'Proyectos ilimitados' : `${plan.limit_proyectos} proyectos activos`,
+        included: true
+      },
+      {
+        text: plan.limit_drones_tco === 99999 ? 'Drones TCO ilimitados' : `${plan.limit_drones_tco} ${plan.limit_drones_tco === 1 ? 'dron' : 'drones'} con TCO`,
+        included: true
+      },
+      {
+        text: plan.limit_accesorios_tco === 99999 ? 'Accesorios ilimitados' : `${plan.limit_accesorios_tco} accesorios/baterías`,
+        included: true
+      },
+      {
+        text: 'Alertas de depreciación',
+        included: plan.has_alertas
+      },
+      {
+        text: 'Funciones avanzadas',
+        included: plan.has_func_avanzadas
+      },
+      {
+        text: 'Registro por voz (Telegram)',
+        included: true
+      },
+      {
+        text: 'Export CSV y PDF',
+        included: true
+      }
+    ];
+
+    return features;
+  };
+
+  if (loading) {
+    return (
       <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#3B82F6]" />
+        <Loader2 className="h-12 w-12 animate-spin text-[#3B82F6]" />
       </div>
-    }>
-      <PricingContent />
-    </Suspense>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#F8FAFC]">
+      {/* Navbar */}
+      <nav className="sticky top-0 z-50 bg-white border-b border-[#E5E7EB] backdrop-blur-sm bg-white/90">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <Link href="/" className="flex items-center">
+              <img src="/LogoSkreeo.png" alt="Skreeo" className="h-8" />
+            </Link>
+            <div className="hidden md:flex items-center gap-8">
+              <Link href="/#como-funciona" className="text-[#6B7280] hover:text-[#1F2937] font-medium transition-colors">
+                Cómo funciona
+              </Link>
+              <Link href="/pricing" className="text-[#3B82F6] font-medium">
+                Precios
+              </Link>
+              <Link href="/sobre-nosotros" className="text-[#6B7280] hover:text-[#1F2937] font-medium transition-colors">
+                Sobre nosotros
+              </Link>
+            </div>
+            <div className="flex items-center gap-3">
+              <Link href="/login" className="text-[#6B7280] hover:text-[#1F2937] font-medium transition-colors">
+                Iniciar Sesión
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <h1 className="text-4xl sm:text-5xl font-bold text-[#1F2937] mb-4">
+              Planes que se adaptan a tu <span className="text-[#3B82F6]">negocio</span>
+            </h1>
+            <p className="text-xl text-[#6B7280]">
+              Desde pilotos freelance hasta grandes operadoras. Sin compromiso, cancela cuando quieras.
+            </p>
+          </div>
+
+          {/* Billing Toggle */}
+          <div className="flex items-center justify-center gap-4 mb-12">
+            <span className={`font-medium ${billingCycle === 'monthly' ? 'text-[#1F2937]' : 'text-[#6B7280]'}`}>
+              Mensual
+            </span>
+            <button
+              onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'yearly' : 'monthly')}
+              className={`relative w-14 h-7 rounded-full transition-colors ${
+                billingCycle === 'yearly' ? 'bg-[#3B82F6]' : 'bg-gray-300'
+              }`}
+            >
+              <div
+                className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform ${
+                  billingCycle === 'yearly' ? 'translate-x-7' : 'translate-x-0'
+                }`}
+              />
+            </button>
+            <span className={`font-medium ${billingCycle === 'yearly' ? 'text-[#1F2937]' : 'text-[#6B7280]'}`}>
+              Anual
+            </span>
+            {billingCycle === 'yearly' && (
+              <span className="bg-green-100 text-green-700 text-sm font-medium px-3 py-1 rounded-full">
+                Ahorra 1 mes
+              </span>
+            )}
+          </div>
+
+          {/* Plans Grid */}
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {plans.map((plan) => {
+              const isPopular = plan.id === 'operador';
+              const price = billingCycle === 'monthly' ? plan.price_monthly : plan.price_yearly;
+              const priceMonthly = billingCycle === 'yearly' ? plan.price_yearly / 12 : plan.price_monthly;
+              const features = getPlanFeatures(plan);
+
+              return (
+                <div
+                  key={plan.id}
+                  className={`relative bg-white rounded-2xl shadow-lg border-2 ${
+                    isPopular ? 'border-[#3B82F6] scale-105' : 'border-[#E5E7EB]'
+                  } p-8 flex flex-col`}
+                >
+                  {isPopular && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#3B82F6] text-white text-sm font-bold px-4 py-1 rounded-full">
+                      MÁS POPULAR
+                    </div>
+                  )}
+
+                  {/* Plan Name */}
+                  <h3 className="text-2xl font-bold text-[#1F2937] mb-2">
+                    {plan.name}
+                  </h3>
+
+                  {/* Price */}
+                  <div className="mb-6">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-4xl font-bold text-[#1F2937]">
+                        {formatPrice(priceMonthly)}€
+                      </span>
+                      <span className="text-[#6B7280]">/mes</span>
+                    </div>
+                    {billingCycle === 'yearly' && (
+                      <p className="text-sm text-[#6B7280] mt-1">
+                        Facturado anualmente ({formatPrice(price)}€/año)
+                      </p>
+                    )}
+                  </div>
+
+                  {/* CTA */}
+                  <Link
+                    href={`/register?plan=${plan.id}&cycle=${billingCycle}`}
+                    className={`w-full py-3 rounded-lg font-semibold text-center transition-all mb-6 ${
+                      isPopular
+                        ? 'bg-[#3B82F6] hover:bg-[#2563EB] text-white'
+                        : 'bg-white hover:bg-gray-50 text-[#3B82F6] border-2 border-[#3B82F6]'
+                    }`}
+                  >
+                    Empezar ahora
+                  </Link>
+
+                  {/* Features */}
+                  <ul className="space-y-3 flex-grow">
+                    {features.map((feature, idx) => (
+                      <li key={idx} className="flex items-start gap-3">
+                        {feature.included ? (
+                          <Check className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        ) : (
+                          <div className="h-5 w-5 flex-shrink-0 mt-0.5"></div>
+                        )}
+                        <span className={`text-sm ${feature.included ? 'text-[#1F2937]' : 'text-[#9CA3AF]'}`}>
+                          {feature.text}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Trial Info */}
+          <div className="text-center mt-12">
+            <p className="text-lg text-[#6B7280] mb-4">
+              🎉 <strong>Prueba gratis 14 días.</strong> Sin tarjeta de crédito.
+            </p>
+            <p className="text-sm text-[#9CA3AF]">
+              Cancela cuando quieras. Sin preguntas.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-20 bg-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-[#1F2937] mb-12 text-center">
+            Preguntas frecuentes
+          </h2>
+
+          <div className="space-y-6">
+            <div className="border-b border-[#E5E7EB] pb-6">
+              <h3 className="text-lg font-semibold text-[#1F2937] mb-2">
+                ¿Necesito tarjeta de crédito para la prueba?
+              </h3>
+              <p className="text-[#6B7280]">
+                No. La prueba de 14 días es completamente gratuita y no requiere tarjeta.
+              </p>
+            </div>
+
+            <div className="border-b border-[#E5E7EB] pb-6">
+              <h3 className="text-lg font-semibold text-[#1F2937] mb-2">
+                ¿Puedo cambiar de plan en cualquier momento?
+              </h3>
+              <p className="text-[#6B7280]">
+                Sí, puedes hacer upgrade o downgrade cuando quieras. El cambio se aplica inmediatamente.
+              </p>
+            </div>
+
+            <div className="border-b border-[#E5E7EB] pb-6">
+              <h3 className="text-lg font-semibold text-[#1F2937] mb-2">
+                ¿Qué pasa si cancelo mi suscripción?
+              </h3>
+              <p className="text-[#6B7280]">
+                Mantienes acceso hasta el final de tu periodo de facturación. Tus datos se conservan 30 días por si decides volver.
+              </p>
+            </div>
+
+            <div className="border-b border-[#E5E7EB] pb-6">
+              <h3 className="text-lg font-semibold text-[#1F2937] mb-2">
+                ¿Ofrecen descuentos para equipos grandes?
+              </h3>
+              <p className="text-[#6B7280]">
+                Sí, contacta con nosotros si necesitas más de 10 licencias. Tenemos planes empresariales personalizados.
+              </p>
+            </div>
+
+            <div className="pb-6">
+              <h3 className="text-lg font-semibold text-[#1F2937] mb-2">
+                ¿Qué métodos de pago aceptan?
+              </h3>
+              <p className="text-[#6B7280]">
+                Tarjeta de crédito/débito (Visa, Mastercard, American Express) a través de Stripe. Totalmente seguro.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Final */}
+      <section className="py-20 bg-gradient-to-br from-[#3B82F6] to-[#2563EB]">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">
+            ¿Listo para controlar tu rentabilidad?
+          </h2>
+          <p className="text-xl text-blue-100 mb-10">
+            Únete a cientos de pilotos que ya gestionan su negocio con Skreeo
+          </p>
+          <Link 
+            href="/register"
+            className="inline-flex items-center gap-2 bg-white hover:bg-gray-100 text-[#3B82F6] px-8 py-4 rounded-lg font-bold text-lg transition-all shadow-xl"
+          >
+            <span>Empezar gratis 14 días</span>
+            <ArrowRight className="h-5 w-5" />
+          </Link>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-[#1F2937] text-white py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-4 gap-8 mb-8">
+            <div>
+              <img src="/LogoSkreeo.png" alt="Skreeo" className="h-8 mb-4 brightness-0 invert" />
+              <p className="text-gray-400 text-sm">
+                Gestión inteligente de flotas de drones
+              </p>
+            </div>
+            <div>
+              <h3 className="font-bold mb-4">Producto</h3>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li><Link href="/#como-funciona" className="hover:text-white">Cómo funciona</Link></li>
+                <li><Link href="/pricing" className="hover:text-white">Precios</Link></li>
+                <li><Link href="/sobre-nosotros" className="hover:text-white">Sobre nosotros</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-bold mb-4">Recursos</h3>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li><Link href="/blog" className="hover:text-white">Blog</Link></li>
+                <li><Link href="/ayuda" className="hover:text-white">Centro de ayuda</Link></li>
+                <li><Link href="/contacto" className="hover:text-white">Contacto</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-bold mb-4">Legal</h3>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li><Link href="/aviso-legal" className="hover:text-white">Aviso Legal</Link></li>
+                <li><Link href="/privacidad" className="hover:text-white">Privacidad</Link></li>
+                <li><Link href="/cookies" className="hover:text-white">Cookies</Link></li>
+                <li><Link href="/terminos" className="hover:text-white">Términos</Link></li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-gray-700 pt-8 text-center text-sm text-gray-400">
+            <p>© 2025 Skreeo. Todos los derechos reservados.</p>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }
