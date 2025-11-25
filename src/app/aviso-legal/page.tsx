@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Footer from '@/components/Footer';
 
 export default function AvisoLegalPage() {
   return (
@@ -191,17 +192,7 @@ export default function AvisoLegalPage() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-12 border-t border-[#E5E7EB]">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-[#6B7280]">
-          <p>© 2025 Skreeo</p>
-          <div className="flex items-center gap-6">
-            <Link href="/aviso-legal" className="hover:text-[#1F2937]">Aviso Legal</Link>
-            <Link href="/privacidad" className="hover:text-[#1F2937]">Privacidad</Link>
-            <Link href="/terminos" className="hover:text-[#1F2937]">Términos</Link>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
