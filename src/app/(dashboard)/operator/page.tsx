@@ -117,7 +117,7 @@ export default async function OperatorPage() {
           </div>
           
           <OperatorSelector 
-            currentOperator={operadora}
+            currentOperator={operadorActivo.operadoras as any}}
             pilotoId={piloto.id_piloto}
           />
         </div>
