@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import Footer from '@/components/Footer';
 import { 
   AlertTriangle, 
   Percent, 
@@ -247,6 +248,7 @@ export default async function OperatorPage() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
