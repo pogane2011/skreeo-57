@@ -79,10 +79,7 @@ export default function DashboardLayout({
         {/* Logo */}
         <div className="h-16 px-4 flex items-center border-b border-gray-200">
           <Link href="/operator" className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-blue-600 flex items-center justify-center">
-              <Plane className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-gray-900">Skreeo</span>
+            <img src="/LogoSkreeo.png" alt="Skreeo Logo" className="h-10 md:h-12" loading="eager" />
           </Link>
         </div>
 
@@ -171,10 +168,7 @@ export default function DashboardLayout({
         {/* Header */}
         <div className="h-16 px-4 flex items-center justify-between border-b border-gray-200">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-blue-600 flex items-center justify-center">
-              <Plane className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-gray-900">Skreeo</span>
+            <img src="/LogoSkreeo.png" alt="Skreeo Logo" className="h-10 md:h-12" loading="eager" />
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
