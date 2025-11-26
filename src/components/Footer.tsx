@@ -18,11 +18,6 @@ export default function Footer() {
             <h3 className="font-bold text-[#1F2937] mb-4">Producto</h3>
             <ul className="space-y-2 text-sm text-[#6B7280]">
               <li>
-                <Link href="/#como-funciona" className="hover:text-[#3B82F6] transition-colors">
-                  Cómo funciona
-                </Link>
-              </li>
-              <li>
                 <Link href="/pricing" className="hover:text-[#3B82F6] transition-colors">
                   Precios
                 </Link>
@@ -30,6 +25,11 @@ export default function Footer() {
               <li>
                 <Link href="/sobre-nosotros" className="hover:text-[#3B82F6] transition-colors">
                   Sobre nosotros
+                </Link>
+              </li>
+              <li>
+                <Link href="/#como-funciona" className="hover:text-[#3B82F6] transition-colors">
+                  Cómo funciona
                 </Link>
               </li>
             </ul>
