@@ -14,11 +14,8 @@ import {
   X,
   Bell,
   Search,
-  MoreHorizontal,
   BookOpen,
   FileText,
-  Settings,
-  HelpCircle,
 } from 'lucide-react';
 import UserMenu from '@/components/dashboard/UserMenu';
 
@@ -29,7 +26,6 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   // TODO: Obtener del usuario logueado (Supabase)
   const user = {
@@ -48,18 +44,13 @@ export default function DashboardLayout({
     { name: 'Mi Negocio', href: '/business', icon: TrendingUp },
   ];
 
+  // Bottom Nav: Solo 5 acciones principales (SIN botón "Más")
   const bottomNav = [
-    { name: 'Inicio', href: '/operator', icon: LayoutDashboard },
+    { name: 'Dashboard', href: '/operator', icon: LayoutDashboard },
     { name: 'Flota', href: '/fleet', icon: Plane },
     { name: 'Proyectos', href: '/projects', icon: FolderKanban },
     { name: 'Vuelos', href: '/flights', icon: PlaneTakeoff },
-  ];
-
-  const moreMenuItems = [
-    { name: 'Pilotos', href: '/pilots', icon: Users },
-    { name: 'Mi Negocio', href: '/business', icon: TrendingUp },
-    { name: 'Configuración', href: '/settings', icon: Settings },
-    { name: 'Centro de Ayuda', href: '/help', icon: HelpCircle },
+    { name: 'Negocio', href: '/business', icon: TrendingUp },
   ];
 
   const isActive = (href: string) => {
@@ -77,15 +68,7 @@ export default function DashboardLayout({
         />
       )}
 
-      {/* Overlay menú "Más" */}
-      {moreMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50"
-          onClick={() => setMoreMenuOpen(false)}
-        />
-      )}
-
-      {/* Sidebar Desktop */}
+      {/* Sidebar */}
       <aside
         className={`fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 flex flex-col z-50 transform transition-transform duration-300 lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -207,12 +190,6 @@ export default function DashboardLayout({
               <Bell className="h-5 w-5" />
               <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
             </button>
-
-            {/* Separador */}
-            <div className="h-6 w-px bg-gray-200 mx-2"></div>
-
-            {/* User Menu Desktop (mini) */}
-            <UserMenu user={user} />
           </div>
         </header>
 
@@ -220,7 +197,7 @@ export default function DashboardLayout({
         <main className="p-6 lg:p-8">{children}</main>
       </div>
 
-      {/* Bottom Navigation móvil */}
+      {/* Bottom Navigation móvil - SOLO 5 opciones principales */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex items-center justify-around py-2 px-2 z-40 lg:hidden">
         {bottomNav.map((item) => {
           const Icon = item.icon;
@@ -229,7 +206,7 @@ export default function DashboardLayout({
             <Link
               key={item.name}
               href={item.href}
-              className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg min-w-0 ${
+              className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg min-w-0 ${
                 active ? 'text-blue-600' : 'text-gray-500'
               }`}
             >
@@ -238,60 +215,7 @@ export default function DashboardLayout({
             </Link>
           );
         })}
-        
-        {/* Botón Más */}
-        <button
-          onClick={() => setMoreMenuOpen(true)}
-          className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-gray-500"
-        >
-          <MoreHorizontal className="h-6 w-6" />
-          <span className="text-xs font-medium">Más</span>
-        </button>
       </nav>
-
-      {/* Sheet "Más" en móvil */}
-      {moreMenuOpen && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl border-t border-gray-200 animate-slide-up">
-          <div className="p-4">
-            {/* Handle */}
-            <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
-            
-            {/* Título */}
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Más opciones</h3>
-              <button
-                onClick={() => setMoreMenuOpen(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Opciones */}
-            <div className="space-y-1">
-              {moreMenuItems.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.href);
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    onClick={() => setMoreMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                      active
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Icon className={`h-5 w-5 ${active ? 'text-blue-700' : 'text-gray-400'}`} />
-                    <span>{item.name}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
