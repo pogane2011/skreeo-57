@@ -242,10 +242,7 @@ export default function DashboardLayout({
             </button>
             <div className="flex-1 flex items-center justify-center">
               <Link href="/operator" className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
-                  <Plane className="h-4 w-4 text-white" />
-                </div>
-                <span className="text-lg font-bold text-gray-900">Skreeo</span>
+                <img src="/LogoSkreeo.png" alt="Skreeo Logo" className="h-10 md:h-12" loading="eager" />
               </Link>
             </div>
             <button className="p-2 -mr-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg relative">
