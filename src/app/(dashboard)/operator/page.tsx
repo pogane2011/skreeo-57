@@ -1,8 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
 import Footer from '@/components/Footer';
-import OperatorSelector from '@/components/dashboard/OperatorSelector';
 import { 
   AlertTriangle, 
   Percent, 
@@ -12,6 +10,8 @@ import {
   Users, 
   FolderKanban, 
   PlaneTakeoff,
+  ArrowUpRight,
+  ArrowDownRight,
   ChevronRight
 } from "lucide-react";
 import Link from "next/link";
@@ -24,75 +24,12 @@ export default async function OperatorPage() {
     { cookies: { get: (name) => cookies().get(name)?.value } }
   );
 
-  // Obtener usuario logueado
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
-
-  // Obtener piloto del usuario (por email)
-  const { data: piloto } = await supabase
-    .from('pilotos')
-    .select('id_piloto')
-    .eq('email', user.email)
-    .single();
-
-  if (!piloto) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <p className="text-gray-500">No tienes un perfil de piloto configurado</p>
-          <Link href="/profile/setup" className="text-blue-600 hover:underline mt-2 inline-block">
-            Configurar perfil
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // Obtener operador activo
-  const { data: operadorActivo } = await supabase
-    .from('operadora_pilotos')
-    .select('id_operadora, operadoras(*)')
-    .eq('id_piloto', piloto.id_piloto)
-    .eq('operador_activo', true)
-    .eq('estado_solicitud', 'activo')
-    .single();
-
-  if (!operadorActivo) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <p className="text-gray-500">No tienes un operador activo</p>
-          <p className="text-sm text-gray-400 mt-2">Busca un operador o solicita acceso</p>
-        </div>
-      </div>
-    );
-  }
-
-  const operadora = operadorActivo.operadoras;
-  const operadoraId = operadorActivo.id_operadora;
-
-  // Consultar datos del operador activo
-  const { data: drones } = await supabase
-    .from('drones')
-    .select('*')
-    .eq('id_operadora', operadoraId);
-
-  const { data: pilotos } = await supabase
-    .from('operadora_pilotos')
-    .select('pilotos(*)')
-    .eq('id_operadora', operadoraId)
-    .eq('estado_solicitud', 'activo');
-
-  const { data: proyectos } = await supabase
-    .from('proyectos')
-    .select('*')
-    .eq('id_operadora', operadoraId)
-    .eq('estado', 'PENDIENTE');
-
-  const { data: vuelos } = await supabase
-    .from('vuelos')
-    .select('*, proyectos!inner(id_operadora)')
-    .eq('proyectos.id_operadora', operadoraId);
+  // Consultar datos reales
+  const { data: drones } = await supabase.from('drones').select('*');
+  const { data: pilotos } = await supabase.from('pilotos').select('*');
+  const { data: proyectos } = await supabase.from('proyectos').select('*').eq('estado', 'PENDIENTE');
+  const { data: vuelos } = await supabase.from('vuelos').select('*');
+  const { data: operadora } = await supabase.from('operadoras').select('*').single();
 
   const uasActivos = drones?.filter(d => d.activo)?.length || 0;
   const totalUAS = drones?.length || 0;
@@ -100,31 +37,46 @@ export default async function OperatorPage() {
   const proyectosActivos = proyectos?.length || 0;
   const totalVuelos = vuelos?.length || 0;
 
+  // Calcular TCO promedio (COH - Coste por Hora)
   const cohPromedio = drones?.length 
     ? (drones.reduce((sum, d) => sum + (d.tco_por_hora || 0), 0) / drones.length).toFixed(2)
     : "0.00";
 
+  // Calcular disponibilidad
   const disponibilidad = totalUAS > 0 ? Math.round((uasActivos / totalUAS) * 100) : 0;
 
   return (
     <div className="space-y-8">
-      {/* Header con selector de operador */}
+      {/* Header de página */}
       <div className="page-header">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="page-title">Dashboard</h1>
             <p className="page-subtitle">Resumen de tu operación</p>
           </div>
-          
-          <OperatorSelector 
-            currentOperator={operadorActivo.operadoras as any}}
-            pilotoId={piloto.id_piloto}
-          />
+
+          {/* Info Operadora */}
+          <div className="skreeo-card px-4 py-3 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-[#DBEAFE] flex items-center justify-center">
+              <span className="text-sm font-bold text-[#3B82F6]">
+                {operadora?.nombre?.substring(0, 2).toUpperCase() || "OP"}
+              </span>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-[#0F172A]">
+                {operadora?.nombre || "Mi Operador"}
+              </p>
+              <p className="text-xs text-[#64748B]">
+                {operadora?.numero_aesa || "Sin número AESA"}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* KPIs Principales */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Alertas */}
         <div className="kpi-card">
           <div className="flex items-start justify-between">
             <div className="kpi-icon kpi-icon-success">
@@ -136,6 +88,7 @@ export default async function OperatorPage() {
           <p className="kpi-label">Alertas Críticas</p>
         </div>
 
+        {/* Disponibilidad */}
         <div className="kpi-card">
           <div className="flex items-start justify-between">
             <div className="kpi-icon kpi-icon-warning">
@@ -153,6 +106,7 @@ export default async function OperatorPage() {
           <p className="kpi-label">Disponibilidad Flota</p>
         </div>
 
+        {/* COH Promedio */}
         <div className="kpi-card">
           <div className="flex items-start justify-between">
             <div className="kpi-icon kpi-icon-info">
@@ -163,6 +117,7 @@ export default async function OperatorPage() {
           <p className="kpi-label">COH Promedio</p>
         </div>
 
+        {/* Vida Útil */}
         <div className="kpi-card">
           <div className="flex items-start justify-between">
             <div className="kpi-icon kpi-icon-purple">
@@ -174,8 +129,9 @@ export default async function OperatorPage() {
         </div>
       </div>
 
-      {/* Stats Rápidos + Acciones */}
+      {/* Stats Rápidos + Accesos directos */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Stats Grid */}
         <div className="lg:col-span-2">
           <div className="skreeo-card">
             <div className="skreeo-card-header">
@@ -223,6 +179,7 @@ export default async function OperatorPage() {
           </div>
         </div>
 
+        {/* Acciones Rápidas */}
         <div className="skreeo-card">
           <div className="skreeo-card-header">
             <h3 className="skreeo-card-title">Acciones Rápidas</h3>
@@ -273,6 +230,7 @@ export default async function OperatorPage() {
         </div>
       </div>
 
+      {/* Info KPIs */}
       <div className="skreeo-card">
         <div className="skreeo-card-body">
           <div className="flex items-start gap-3">
