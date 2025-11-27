@@ -87,7 +87,7 @@ export default function DashboardLayout({
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
           {/* PRINCIPAL */}
           <p className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            Principal
+            Gestión Operacional
           </p>
           {navigation.map((item) => {
             const Icon = item.icon;
