@@ -35,9 +35,9 @@ export default function DashboardLayout({
   // Navegación principal
   const navigation = [
     { name: 'Dashboard', href: '/operator', icon: LayoutDashboard },
-    { name: 'Mi Flota', href: '/fleet', icon: Plane },
-    { name: 'Pilotos', href: '/pilots', icon: Users },
     { name: 'Proyectos', href: '/projects', icon: FolderKanban },
+    { name: 'Pilotos', href: '/pilots', icon: Users },
+    { name: 'Mi Flota', href: '/fleet', icon: Plane },
     { name: 'Vuelos', href: '/flights', icon: PlaneTakeoff },
   ];
 
