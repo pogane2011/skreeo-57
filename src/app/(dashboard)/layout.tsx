@@ -185,9 +185,9 @@ export default function DashboardLayout({
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Mi Flota', href: '/fleet', icon: Rocket },
-    { name: 'Pilotos', href: '/pilots', icon: Users },
     { name: 'Proyectos', href: '/projects', icon: FolderKanban },
+    { name: 'Pilotos', href: '/pilots', icon: Users },
+    { name: 'Mi Flota', href: '/fleet', icon: Rocket },
     { name: 'Vuelos', href: '/flights', icon: PlaneTakeoff },
   ];
 
