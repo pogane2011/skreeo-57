@@ -310,7 +310,7 @@ export default function DashboardLayout({
 
             {/* GESTIONAR OPERADORES - VISIBLE */}
             <Link
-              href="/operadores"
+              href="/operator"
               className="flex items-center gap-2 px-3 py-2 mt-3 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors font-medium"
             >
               <SettingsIcon className="h-4 w-4" />
@@ -423,7 +423,7 @@ export default function DashboardLayout({
             )}
 
             <Link
-              href="/operadores"
+              href="/operator"
               onClick={() => setSidebarOpen(false)}
               className="flex items-center gap-2 px-3 py-2 mt-3 text-sm text-blue-600 hover:bg-blue-50 rounded-lg font-medium"
             >
