@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useParams, useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
   LayoutDashboard,
@@ -15,7 +15,7 @@ import {
   Bell,
   Search,
   User,
-  Settings,
+  Settings as SettingsIcon,
   CreditCard,
   Star,
   HelpCircle,
@@ -23,6 +23,7 @@ import {
   LogOut,
   Building2,
   Check,
+  Settings,
 } from 'lucide-react';
 
 export default function DashboardLayout({
@@ -31,18 +32,16 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const params = useParams();
   const router = useRouter();
-  const slug = params.slug as string;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [operadores, setOperadores] = useState<any[]>([]);
-  const [operadorActual, setOperadorActual] = useState<any>(null);
+  const [operadorActivo, setOperadorActivo] = useState<any>(null);
   const [usuario, setUsuario] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
-  }, [slug]);
+  }, []);
 
   const loadData = async () => {
     try {
@@ -55,7 +54,6 @@ export default function DashboardLayout({
         return;
       }
 
-      // Usuario
       const { data: piloto } = await supabase
         .from('pilotos')
         .select('nombre')
@@ -64,7 +62,6 @@ export default function DashboardLayout({
       
       setUsuario(piloto);
 
-      // Relaciones CON operador_activo
       const { data: relaciones } = await supabase
         .from('operadora_pilotos')
         .select('id_operadora, id_rol, operador_activo')
@@ -93,11 +90,9 @@ export default function DashboardLayout({
 
       setOperadores(operadoresConRol);
       
-      // Operador actual (por slug o por operador_activo)
-      const actual = operadoresConRol.find(op => op.operadoras?.slug === slug) 
-        || operadoresConRol.find(op => op.operador_activo);
-      
-      setOperadorActual(actual?.operadoras);
+      // Operador activo
+      const activo = operadoresConRol.find(op => op.operador_activo);
+      setOperadorActivo(activo);
       
     } catch (error) {
       console.error('Error loading data:', error);
@@ -106,9 +101,7 @@ export default function DashboardLayout({
     }
   };
 
-  const cambiarOperador = async (idOperadora: string, newSlug: string) => {
-    if (newSlug === slug) return;
-
+  const cambiarOperador = async (idOperadora: string) => {
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -128,8 +121,13 @@ export default function DashboardLayout({
         .eq('id_piloto', user.id)
         .eq('id_operadora', idOperadora);
 
-      // 3. Cambiar URL y recargar
-      router.push(`/operador/${newSlug}/dashboard`);
+      // 3. Recargar datos SIN cambiar URL
+      await loadData();
+      
+      // 4. Si estamos en dashboard, forzar recarga de página para actualizar datos
+      if (pathname === '/dashboard') {
+        window.location.reload();
+      }
       
     } catch (error) {
       console.error('Error cambiando operador:', error);
@@ -137,20 +135,20 @@ export default function DashboardLayout({
   };
 
   const navigation = [
-    { name: 'Dashboard', href: `/operador/${slug}/dashboard`, icon: LayoutDashboard },
-    { name: 'Mi Flota', href: `/operador/${slug}/fleet`, icon: Rocket },
-    { name: 'Pilotos', href: `/operador/${slug}/pilots`, icon: Users },
-    { name: 'Proyectos', href: `/operador/${slug}/projects`, icon: FolderKanban },
-    { name: 'Vuelos', href: `/operador/${slug}/flights`, icon: PlaneTakeoff },
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Mi Flota', href: '/fleet', icon: Rocket },
+    { name: 'Pilotos', href: '/pilots', icon: Users },
+    { name: 'Proyectos', href: '/projects', icon: FolderKanban },
+    { name: 'Vuelos', href: '/flights', icon: PlaneTakeoff },
   ];
 
   const accountMenu = [
-    { name: 'Mi Perfil', href: `/operador/${slug}/profile`, icon: User },
-    { name: 'Configuración', href: `/operador/${slug}/settings`, icon: Settings },
-    { name: 'Facturación', href: `/operador/${slug}/billing`, icon: CreditCard },
+    { name: 'Mi Perfil', href: '/profile', icon: User },
+    { name: 'Configuración', href: '/settings', icon: SettingsIcon },
+    { name: 'Facturación', href: '/billing', icon: CreditCard },
     { name: 'Mejorar Plan', href: '/pricing', icon: Star, highlight: true },
     { name: 'Centro de Ayuda', href: '/help', icon: HelpCircle },
-    { name: 'Vincular Telegram', href: `/operador/${slug}/settings?tab=integrations`, icon: MessageSquare },
+    { name: 'Vincular Telegram', href: '/settings?tab=integrations', icon: MessageSquare },
   ];
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
@@ -181,7 +179,7 @@ export default function DashboardLayout({
       {/* Sidebar Desktop */}
       <aside className="hidden lg:flex fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 flex-col z-50">
         <div className="h-16 px-4 flex items-center border-b border-gray-200">
-          <Link href={`/operador/${slug}/dashboard`}>
+          <Link href="/dashboard">
             <img src="/LogoSkreeo.png" alt="Skreeo" className="h-10" />
           </Link>
         </div>
@@ -199,21 +197,17 @@ export default function DashboardLayout({
             ) : (
               <div className="space-y-1">
                 {operadores.map((op: any) => {
-                  const isSelected = op.operadoras?.slug === slug;
                   const isActivo = op.operador_activo;
                   return (
                     <button
                       key={op.id_operadora}
-                      onClick={() => cambiarOperador(op.id_operadora, op.operadoras?.slug)}
+                      onClick={() => cambiarOperador(op.id_operadora)}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors w-full ${
-                        isSelected 
-                          ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-200' 
-                          : isActivo
-                          ? 'bg-green-50 text-green-700'
+                        isActivo
+                          ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-200'
                           : 'text-gray-600 hover:bg-gray-100'
                       }`}
                     >
-                      {/* Logo o icono */}
                       {op.operadoras?.logo_url ? (
                         <img 
                           src={op.operadoras.logo_url} 
@@ -222,31 +216,34 @@ export default function DashboardLayout({
                         />
                       ) : (
                         <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                          isSelected 
-                            ? 'bg-blue-600' 
-                            : isActivo
-                            ? 'bg-green-600'
-                            : 'bg-gray-100'
+                          isActivo ? 'bg-blue-600' : 'bg-gray-100'
                         }`}>
-                          <Building2 className={`h-4 w-4 ${
-                            isSelected || isActivo ? 'text-white' : 'text-gray-600'
-                          }`} />
+                          <Building2 className={`h-4 w-4 ${isActivo ? 'text-white' : 'text-gray-600'}`} />
                         </div>
                       )}
                       
                       <div className="flex-1 text-left min-w-0">
                         <p className="truncate">{op.operadoras?.nombre || 'Sin nombre'}</p>
                         {isActivo && (
-                          <p className="text-xs text-green-600">Activo</p>
+                          <p className="text-xs text-blue-600">Activo</p>
                         )}
                       </div>
                       
-                      {isSelected && <Check className="h-4 w-4 text-blue-700 flex-shrink-0" />}
+                      {isActivo && <Check className="h-4 w-4 text-blue-700 flex-shrink-0" />}
                     </button>
                   );
                 })}
               </div>
             )}
+
+            {/* GESTIONAR OPERADORES */}
+            <Link
+              href="/operadores"
+              className="flex items-center gap-2 px-3 py-2 mt-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              <Settings className="h-4 w-4" />
+              <span>Gestionar operadores</span>
+            </Link>
           </div>
 
           {/* GESTIÓN OPERACIONAL */}
@@ -317,7 +314,7 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      {/* Sidebar Mobile - MISMA ESTRUCTURA */}
+      {/* Sidebar Mobile - MISMA estructura */}
       <aside
         className={`lg:hidden fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 flex flex-col z-50 transform transition-transform duration-300 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -337,20 +334,17 @@ export default function DashboardLayout({
               <div className="px-3 py-4 text-sm text-gray-500">No operadores</div>
             ) : (
               operadores.map((op: any) => {
-                const isSelected = op.operadoras?.slug === slug;
                 const isActivo = op.operador_activo;
                 return (
                   <button
                     key={op.id_operadora}
                     onClick={() => {
-                      cambiarOperador(op.id_operadora, op.operadoras?.slug);
+                      cambiarOperador(op.id_operadora);
                       setSidebarOpen(false);
                     }}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full ${
-                      isSelected 
-                        ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-200' 
-                        : isActivo
-                        ? 'bg-green-50 text-green-700'
+                      isActivo
+                        ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-200'
                         : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
@@ -362,28 +356,31 @@ export default function DashboardLayout({
                       />
                     ) : (
                       <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
-                        isSelected 
-                          ? 'bg-blue-600' 
-                          : isActivo
-                          ? 'bg-green-600'
-                          : 'bg-gray-100'
+                        isActivo ? 'bg-blue-600' : 'bg-gray-100'
                       }`}>
-                        <Building2 className={`h-4 w-4 ${
-                          isSelected || isActivo ? 'text-white' : 'text-gray-600'
-                        }`} />
+                        <Building2 className={`h-4 w-4 ${isActivo ? 'text-white' : 'text-gray-600'}`} />
                       </div>
                     )}
                     
                     <div className="flex-1 text-left min-w-0">
                       <p className="truncate">{op.operadoras?.nombre || 'Sin nombre'}</p>
-                      {isActivo && <p className="text-xs text-green-600">Activo</p>}
+                      {isActivo && <p className="text-xs text-blue-600">Activo</p>}
                     </div>
                     
-                    {isSelected && <Check className="h-4 w-4 text-blue-700" />}
+                    {isActivo && <Check className="h-4 w-4 text-blue-700" />}
                   </button>
                 );
               })
             )}
+
+            <Link
+              href="/operadores"
+              onClick={() => setSidebarOpen(false)}
+              className="flex items-center gap-2 px-3 py-2 mt-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg"
+            >
+              <Settings className="h-4 w-4" />
+              <span>Gestionar operadores</span>
+            </Link>
           </div>
 
           <div className="pt-4 border-t border-gray-200">
