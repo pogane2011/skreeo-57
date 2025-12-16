@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Building2, Plus } from 'lucide-react';
+import Footer from '@/components/Footer';
 import { getOperadorActivo } from '@/lib/getOperadorActivo' ;
 
 export default async function OperadoresPage() {
