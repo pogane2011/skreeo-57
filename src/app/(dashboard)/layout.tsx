@@ -39,6 +39,7 @@ export default function DashboardLayout({
   const [operadorActivo, setOperadorActivo] = useState<any>(null);
   const [usuario, setUsuario] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [cambiandoOperador, setCambiandoOperador] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -102,30 +103,51 @@ export default function DashboardLayout({
   };
 
   const cambiarOperador = async (idOperadora: string) => {
+    if (cambiandoOperador) return;
+    
+    setCambiandoOperador(true);
+    
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) return;
 
+      console.log('Cambiando a operador:', idOperadora);
+
       // 1. Poner todos en false
-      await supabase
+      const { error: error1 } = await supabase
         .from('operadora_pilotos')
         .update({ operador_activo: false })
         .eq('id_piloto', user.id);
 
+      if (error1) {
+        console.error('Error desactivando:', error1);
+        return;
+      }
+
       // 2. Poner el seleccionado en true
-      await supabase
+      const { error: error2 } = await supabase
         .from('operadora_pilotos')
         .update({ operador_activo: true })
         .eq('id_piloto', user.id)
         .eq('id_operadora', idOperadora);
 
-      // 3. RECARGAR PÁGINA COMPLETA para actualizar todos los datos
-      window.location.href = '/dashboard';
+      if (error2) {
+        console.error('Error activando:', error2);
+        return;
+      }
+
+      console.log('Operador cambiado, recargando página...');
+
+      // 3. RECARGAR PÁGINA COMPLETA
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 300);
       
     } catch (error) {
       console.error('Error cambiando operador:', error);
+      setCambiandoOperador(false);
     }
   };
 
@@ -138,7 +160,6 @@ export default function DashboardLayout({
   ];
 
   const accountOptions = [
-    { name: 'Gestionar operadores', href: '/operadores', icon: Building2 },
     { name: 'Mi Perfil', href: '/profile', icon: User },
     { name: 'Configuración', href: '/settings', icon: SettingsIcon },
     { name: 'Facturación', href: '/billing', icon: CreditCard },
@@ -172,27 +193,27 @@ export default function DashboardLayout({
         />
       )}
 
-      {/* PANEL CUENTA ESTILO CLAUDE */}
+      {/* PANEL CUENTA - Z-INDEX MAYOR */}
       {accountPanelOpen && (
         <>
           <div
-            className="fixed inset-0 bg-black/50 z-50"
+            className="fixed inset-0 bg-black/50 z-[60]"
             onClick={() => setAccountPanelOpen(false)}
           />
-          <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-2xl shadow-2xl max-h-[80vh] overflow-hidden lg:inset-auto lg:bottom-20 lg:left-4 lg:w-80 lg:rounded-2xl animate-slide-up">
+          <div className="fixed inset-x-0 bottom-0 z-[70] bg-white rounded-t-2xl shadow-2xl max-h-[70vh] overflow-hidden lg:inset-auto lg:bottom-20 lg:left-4 lg:w-72 lg:rounded-2xl animate-slide-up">
             {/* Header panel */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Cuenta</h3>
+              <h3 className="text-base font-semibold text-gray-900">Cuenta</h3>
               <button
                 onClick={() => setAccountPanelOpen(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
             {/* Opciones */}
-            <div className="overflow-y-auto max-h-[calc(80vh-72px)]">
+            <div className="overflow-y-auto max-h-[calc(70vh-60px)]">
               <div className="p-2">
                 {accountOptions.map((option) => {
                   const Icon = option.icon;
@@ -201,22 +222,22 @@ export default function DashboardLayout({
                       key={option.name}
                       href={option.href}
                       onClick={() => setAccountPanelOpen(false)}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors ${
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors ${
                         option.highlight ? 'text-blue-600' : 'text-gray-700'
                       }`}
                     >
-                      <Icon className="h-5 w-5" />
-                      <span className="font-medium">{option.name}</span>
+                      <Icon className="h-4 w-4" />
+                      <span className="text-sm font-medium">{option.name}</span>
                     </Link>
                   );
                 })}
 
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 w-full mt-2"
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg text-red-600 hover:bg-red-50 w-full mt-2"
                 >
-                  <LogOut className="h-5 w-5" />
-                  <span className="font-medium">Cerrar Sesión</span>
+                  <LogOut className="h-4 w-4" />
+                  <span className="text-sm font-medium">Cerrar Sesión</span>
                 </button>
               </div>
             </div>
@@ -250,10 +271,12 @@ export default function DashboardLayout({
                     <button
                       key={op.id_operadora}
                       onClick={() => cambiarOperador(op.id_operadora)}
-                      disabled={isActivo}
+                      disabled={isActivo || cambiandoOperador}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors w-full ${
                         isActivo
                           ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-200 cursor-default'
+                          : cambiandoOperador
+                          ? 'opacity-50 cursor-wait'
                           : 'text-gray-600 hover:bg-gray-100 cursor-pointer'
                       }`}
                     >
@@ -284,6 +307,15 @@ export default function DashboardLayout({
                 })}
               </div>
             )}
+
+            {/* GESTIONAR OPERADORES - VISIBLE */}
+            <Link
+              href="/operadores"
+              className="flex items-center gap-2 px-3 py-2 mt-3 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors font-medium"
+            >
+              <SettingsIcon className="h-4 w-4" />
+              <span>Gestionar operadores</span>
+            </Link>
           </div>
 
           {/* GESTIÓN OPERACIONAL */}
@@ -310,7 +342,7 @@ export default function DashboardLayout({
           </div>
         </nav>
 
-        {/* BOTÓN CUENTA - ESTILO CLAUDE */}
+        {/* BOTÓN CUENTA */}
         <div className="p-4 border-t border-gray-200">
           <button
             onClick={() => setAccountPanelOpen(!accountPanelOpen)}
@@ -356,10 +388,12 @@ export default function DashboardLayout({
                       cambiarOperador(op.id_operadora);
                       setSidebarOpen(false);
                     }}
-                    disabled={isActivo}
+                    disabled={isActivo || cambiandoOperador}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full ${
                       isActivo
                         ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-200'
+                        : cambiandoOperador
+                        ? 'opacity-50'
                         : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
@@ -387,6 +421,15 @@ export default function DashboardLayout({
                 );
               })
             )}
+
+            <Link
+              href="/operadores"
+              onClick={() => setSidebarOpen(false)}
+              className="flex items-center gap-2 px-3 py-2 mt-3 text-sm text-blue-600 hover:bg-blue-50 rounded-lg font-medium"
+            >
+              <SettingsIcon className="h-4 w-4" />
+              <span>Gestionar operadores</span>
+            </Link>
           </div>
 
           <div className="pt-4 border-t border-gray-200">
