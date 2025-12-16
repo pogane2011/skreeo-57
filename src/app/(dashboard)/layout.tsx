@@ -38,45 +38,79 @@ export default function DashboardLayout({
   const [operadores, setOperadores] = useState<any[]>([]);
   const [usuario, setUsuario] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [debug, setDebug] = useState<string>('');
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      router.push('/login');
-      return;
+    try {
+      const supabase = createClient();
+      
+      // 1. Obtener usuario
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      console.log('1. Auth user:', user?.id);
+      setDebug(`User ID: ${user?.id}`);
+      
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
+      // 2. Obtener piloto
+      const { data: piloto, error: pilotoError } = await supabase
+        .from('pilotos')
+        .select('nombre')
+        .eq('id_piloto', user.id)
+        .single();
+      
+      console.log('2. Piloto:', piloto, 'Error:', pilotoError);
+      setUsuario(piloto);
+
+      // 3. Obtener operadores - QUERY SIMPLIFICADA
+      const { data: relaciones, error: relacionesError } = await supabase
+        .from('operadora_pilotos')
+        .select('id_operadora, id_rol')
+        .eq('id_piloto', user.id);
+
+      console.log('3. Relaciones:', relaciones, 'Error:', relacionesError);
+      
+      if (!relaciones || relaciones.length === 0) {
+        setDebug(`No relaciones found for user ${user.id}`);
+        setLoading(false);
+        return;
+      }
+
+      // 4. Obtener operadoras manualmente
+      const operadorasIds = relaciones.map(r => r.id_operadora);
+      const { data: ops, error: opsError } = await supabase
+        .from('operadoras')
+        .select('id, nombre, slug, num_aesa')
+        .in('id', operadorasIds);
+
+      console.log('4. Operadoras:', ops, 'Error:', opsError);
+
+      // 5. Combinar datos
+      const operadoresConRol = relaciones.map(rel => {
+        const operadora = ops?.find(o => o.id === rel.id_operadora);
+        return {
+          id_operadora: rel.id_operadora,
+          id_rol: rel.id_rol,
+          operadoras: operadora
+        };
+      });
+
+      console.log('5. Operadores finales:', operadoresConRol);
+      setOperadores(operadoresConRol);
+      setDebug(`${operadoresConRol.length} operadores cargados`);
+      
+    } catch (error) {
+      console.error('Error loading data:', error);
+      setDebug(`Error: ${error}`);
+    } finally {
+      setLoading(false);
     }
-
-    // Usuario
-    const { data: piloto } = await supabase
-      .from('pilotos')
-      .select('nombre')
-      .eq('id_piloto', user.id)
-      .single();
-
-    // TODOS los operadores del usuario
-    const { data: ops } = await supabase
-      .from('operadora_pilotos')
-      .select(`
-        id_operadora,
-        id_rol,
-        operadoras!inner (
-          id,
-          nombre,
-          slug,
-          num_aesa
-        )
-      `)
-      .eq('id_piloto', user.id);
-
-    setUsuario(piloto);
-    setOperadores(ops || []);
-    setLoading(false);
   };
 
   const cambiarOperador = (newSlug: string) => {
@@ -112,8 +146,9 @@ export default function DashboardLayout({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
         <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-gray-500">{debug}</p>
       </div>
     );
   }
@@ -129,7 +164,6 @@ export default function DashboardLayout({
 
       {/* Sidebar Desktop */}
       <aside className="hidden lg:flex fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 flex-col z-50">
-        {/* Logo */}
         <div className="h-16 px-4 flex items-center border-b border-gray-200">
           <Link href={`/operador/${slug}/dashboard`}>
             <img src="/LogoSkreeo.png" alt="Skreeo" className="h-10" />
@@ -137,33 +171,46 @@ export default function DashboardLayout({
         </div>
 
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+          {/* DEBUG INFO */}
+          <div className="px-3 py-2 mb-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+            <p className="font-semibold text-yellow-800">Debug:</p>
+            <p className="text-yellow-700">{debug}</p>
+            <p className="text-yellow-700">Operadores: {operadores.length}</p>
+          </div>
+
           {/* MIS OPERADORES */}
           <div className="mb-4">
             <p className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
               Mis Operadores
             </p>
-            <div className="space-y-1">
-              {operadores.map((op: any) => {
-                const isActive = op.operadoras.slug === slug;
-                return (
-                  <button
-                    key={op.id_operadora}
-                    onClick={() => cambiarOperador(op.operadoras.slug)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors w-full ${
-                      isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                      isActive ? 'bg-blue-600' : 'bg-gray-100'
-                    }`}>
-                      <Building2 className={`h-4 w-4 ${isActive ? 'text-white' : 'text-gray-600'}`} />
-                    </div>
-                    <span className="truncate flex-1 text-left">{op.operadoras.nombre}</span>
-                    {isActive && <Check className="h-4 w-4 text-blue-700 flex-shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
+            {operadores.length === 0 ? (
+              <div className="px-3 py-4 text-sm text-gray-500">
+                No se encontraron operadores
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {operadores.map((op: any) => {
+                  const isActive = op.operadoras?.slug === slug;
+                  return (
+                    <button
+                      key={op.id_operadora}
+                      onClick={() => cambiarOperador(op.operadoras?.slug)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors w-full ${
+                        isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        isActive ? 'bg-blue-600' : 'bg-gray-100'
+                      }`}>
+                        <Building2 className={`h-4 w-4 ${isActive ? 'text-white' : 'text-gray-600'}`} />
+                      </div>
+                      <span className="truncate flex-1 text-left">{op.operadoras?.nombre || 'Sin nombre'}</span>
+                      {isActive && <Check className="h-4 w-4 text-blue-700 flex-shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* GESTIÓN OPERACIONAL */}
@@ -221,7 +268,6 @@ export default function DashboardLayout({
           </div>
         </nav>
 
-        {/* Info usuario */}
         <div className="p-4 border-t border-gray-200">
           <div className="flex items-center gap-3 px-2 py-2">
             <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center text-sm font-semibold text-blue-700">
@@ -235,7 +281,7 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      {/* Sidebar Mobile */}
+      {/* Sidebar Mobile - igual estructura */}
       <aside
         className={`lg:hidden fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 flex flex-col z-50 transform transition-transform duration-300 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -249,35 +295,37 @@ export default function DashboardLayout({
         </div>
 
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-          {/* MIS OPERADORES */}
           <div className="mb-4">
             <p className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase">Mis Operadores</p>
-            {operadores.map((op: any) => {
-              const isActive = op.operadoras.slug === slug;
-              return (
-                <button
-                  key={op.id_operadora}
-                  onClick={() => {
-                    cambiarOperador(op.operadoras.slug);
-                    setSidebarOpen(false);
-                  }}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full ${
-                    isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
-                    isActive ? 'bg-blue-600' : 'bg-gray-100'
-                  }`}>
-                    <Building2 className={`h-4 w-4 ${isActive ? 'text-white' : 'text-gray-600'}`} />
-                  </div>
-                  <span className="truncate flex-1 text-left">{op.operadoras.nombre}</span>
-                  {isActive && <Check className="h-4 w-4 text-blue-700" />}
-                </button>
-              );
-            })}
+            {operadores.length === 0 ? (
+              <div className="px-3 py-4 text-sm text-gray-500">No operadores</div>
+            ) : (
+              operadores.map((op: any) => {
+                const isActive = op.operadoras?.slug === slug;
+                return (
+                  <button
+                    key={op.id_operadora}
+                    onClick={() => {
+                      cambiarOperador(op.operadoras?.slug);
+                      setSidebarOpen(false);
+                    }}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full ${
+                      isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
+                      isActive ? 'bg-blue-600' : 'bg-gray-100'
+                    }`}>
+                      <Building2 className={`h-4 w-4 ${isActive ? 'text-white' : 'text-gray-600'}`} />
+                    </div>
+                    <span className="truncate flex-1 text-left">{op.operadoras?.nombre || 'Sin nombre'}</span>
+                    {isActive && <Check className="h-4 w-4 text-blue-700" />}
+                  </button>
+                );
+              })
+            )}
           </div>
 
-          {/* CUENTA */}
           <div className="pt-4 border-t border-gray-200">
             <p className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase">Cuenta</p>
             {accountMenu.map((item) => {
