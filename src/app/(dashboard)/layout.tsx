@@ -36,12 +36,13 @@ export default function DashboardLayout({
   const slug = params.slug as string;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [operadores, setOperadores] = useState<any[]>([]);
+  const [operadorActual, setOperadorActual] = useState<any>(null);
   const [usuario, setUsuario] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [slug]);
 
   const loadData = async () => {
     try {
@@ -54,6 +55,7 @@ export default function DashboardLayout({
         return;
       }
 
+      // Usuario
       const { data: piloto } = await supabase
         .from('pilotos')
         .select('nombre')
@@ -62,9 +64,10 @@ export default function DashboardLayout({
       
       setUsuario(piloto);
 
+      // Relaciones CON operador_activo
       const { data: relaciones } = await supabase
         .from('operadora_pilotos')
-        .select('id_operadora, id_rol')
+        .select('id_operadora, id_rol, operador_activo')
         .eq('id_piloto', user.id);
       
       if (!relaciones || relaciones.length === 0) {
@@ -75,7 +78,7 @@ export default function DashboardLayout({
       const operadorasIds = relaciones.map(r => r.id_operadora);
       const { data: ops } = await supabase
         .from('operadoras')
-        .select('id, nombre, slug, num_aesa')
+        .select('id, nombre, slug, num_aesa, logo_url')
         .in('id', operadorasIds);
 
       const operadoresConRol = relaciones.map(rel => {
@@ -83,11 +86,18 @@ export default function DashboardLayout({
         return {
           id_operadora: rel.id_operadora,
           id_rol: rel.id_rol,
+          operador_activo: rel.operador_activo,
           operadoras: operadora
         };
       });
 
       setOperadores(operadoresConRol);
+      
+      // Operador actual (por slug o por operador_activo)
+      const actual = operadoresConRol.find(op => op.operadoras?.slug === slug) 
+        || operadoresConRol.find(op => op.operador_activo);
+      
+      setOperadorActual(actual?.operadoras);
       
     } catch (error) {
       console.error('Error loading data:', error);
@@ -96,9 +106,33 @@ export default function DashboardLayout({
     }
   };
 
-  const cambiarOperador = (newSlug: string) => {
-    if (newSlug !== slug) {
+  const cambiarOperador = async (idOperadora: string, newSlug: string) => {
+    if (newSlug === slug) return;
+
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) return;
+
+      // 1. Poner todos en false
+      await supabase
+        .from('operadora_pilotos')
+        .update({ operador_activo: false })
+        .eq('id_piloto', user.id);
+
+      // 2. Poner el seleccionado en true
+      await supabase
+        .from('operadora_pilotos')
+        .update({ operador_activo: true })
+        .eq('id_piloto', user.id)
+        .eq('id_operadora', idOperadora);
+
+      // 3. Cambiar URL y recargar
       router.push(`/operador/${newSlug}/dashboard`);
+      
+    } catch (error) {
+      console.error('Error cambiando operador:', error);
     }
   };
 
@@ -165,22 +199,49 @@ export default function DashboardLayout({
             ) : (
               <div className="space-y-1">
                 {operadores.map((op: any) => {
-                  const isActive = op.operadoras?.slug === slug;
+                  const isSelected = op.operadoras?.slug === slug;
+                  const isActivo = op.operador_activo;
                   return (
                     <button
                       key={op.id_operadora}
-                      onClick={() => cambiarOperador(op.operadoras?.slug)}
+                      onClick={() => cambiarOperador(op.id_operadora, op.operadoras?.slug)}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors w-full ${
-                        isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                        isSelected 
+                          ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-200' 
+                          : isActivo
+                          ? 'bg-green-50 text-green-700'
+                          : 'text-gray-600 hover:bg-gray-100'
                       }`}
                     >
-                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                        isActive ? 'bg-blue-600' : 'bg-gray-100'
-                      }`}>
-                        <Building2 className={`h-4 w-4 ${isActive ? 'text-white' : 'text-gray-600'}`} />
+                      {/* Logo o icono */}
+                      {op.operadoras?.logo_url ? (
+                        <img 
+                          src={op.operadoras.logo_url} 
+                          alt={op.operadoras.nombre}
+                          className="h-8 w-8 rounded-lg object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                          isSelected 
+                            ? 'bg-blue-600' 
+                            : isActivo
+                            ? 'bg-green-600'
+                            : 'bg-gray-100'
+                        }`}>
+                          <Building2 className={`h-4 w-4 ${
+                            isSelected || isActivo ? 'text-white' : 'text-gray-600'
+                          }`} />
+                        </div>
+                      )}
+                      
+                      <div className="flex-1 text-left min-w-0">
+                        <p className="truncate">{op.operadoras?.nombre || 'Sin nombre'}</p>
+                        {isActivo && (
+                          <p className="text-xs text-green-600">Activo</p>
+                        )}
                       </div>
-                      <span className="truncate flex-1 text-left">{op.operadoras?.nombre || 'Sin nombre'}</span>
-                      {isActive && <Check className="h-4 w-4 text-blue-700 flex-shrink-0" />}
+                      
+                      {isSelected && <Check className="h-4 w-4 text-blue-700 flex-shrink-0" />}
                     </button>
                   );
                 })}
@@ -256,7 +317,7 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      {/* Sidebar Mobile */}
+      {/* Sidebar Mobile - MISMA ESTRUCTURA */}
       <aside
         className={`lg:hidden fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 flex flex-col z-50 transform transition-transform duration-300 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -276,25 +337,49 @@ export default function DashboardLayout({
               <div className="px-3 py-4 text-sm text-gray-500">No operadores</div>
             ) : (
               operadores.map((op: any) => {
-                const isActive = op.operadoras?.slug === slug;
+                const isSelected = op.operadoras?.slug === slug;
+                const isActivo = op.operador_activo;
                 return (
                   <button
                     key={op.id_operadora}
                     onClick={() => {
-                      cambiarOperador(op.operadoras?.slug);
+                      cambiarOperador(op.id_operadora, op.operadoras?.slug);
                       setSidebarOpen(false);
                     }}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full ${
-                      isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                      isSelected 
+                        ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-200' 
+                        : isActivo
+                        ? 'bg-green-50 text-green-700'
+                        : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
-                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
-                      isActive ? 'bg-blue-600' : 'bg-gray-100'
-                    }`}>
-                      <Building2 className={`h-4 w-4 ${isActive ? 'text-white' : 'text-gray-600'}`} />
+                    {op.operadoras?.logo_url ? (
+                      <img 
+                        src={op.operadoras.logo_url} 
+                        alt={op.operadoras.nombre}
+                        className="h-8 w-8 rounded-lg object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
+                        isSelected 
+                          ? 'bg-blue-600' 
+                          : isActivo
+                          ? 'bg-green-600'
+                          : 'bg-gray-100'
+                      }`}>
+                        <Building2 className={`h-4 w-4 ${
+                          isSelected || isActivo ? 'text-white' : 'text-gray-600'
+                        }`} />
+                      </div>
+                    )}
+                    
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="truncate">{op.operadoras?.nombre || 'Sin nombre'}</p>
+                      {isActivo && <p className="text-xs text-green-600">Activo</p>}
                     </div>
-                    <span className="truncate flex-1 text-left">{op.operadoras?.nombre || 'Sin nombre'}</span>
-                    {isActive && <Check className="h-4 w-4 text-blue-700" />}
+                    
+                    {isSelected && <Check className="h-4 w-4 text-blue-700" />}
                   </button>
                 );
               })
