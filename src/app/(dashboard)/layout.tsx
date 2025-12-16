@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useParams, useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import {
   LayoutDashboard,
   Plane,
@@ -14,8 +15,6 @@ import {
   X,
   Bell,
   Search,
-  BookOpen,
-  FileText,
   User,
   Settings,
   CreditCard,
@@ -23,6 +22,8 @@ import {
   HelpCircle,
   MessageSquare,
   LogOut,
+  Building2,
+  Check,
 } from 'lucide-react';
 
 export default function DashboardLayout({
@@ -31,43 +32,110 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const params = useParams();
+  const router = useRouter();
+  const slug = params.slug as string;
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [operadorModalOpen, setOperadorModalOpen] = useState(false);
+  const [operador, setOperador] = useState<any>(null);
+  const [usuario, setUsuario] = useState<any>(null);
+  const [operadores, setOperadores] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Navegación principal
+  useEffect(() => {
+    loadData();
+  }, [slug]);
+
+  const loadData = async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    // Operador actual
+    const { data: op } = await supabase
+      .from('operadoras')
+      .select('*')
+      .eq('slug', slug)
+      .single();
+
+    // Usuario
+    const { data: piloto } = await supabase
+      .from('pilotos')
+      .select('nombre')
+      .eq('id_piloto', user.id)
+      .single();
+
+    // Todos los operadores del usuario
+    const { data: ops } = await supabase
+      .from('operadora_pilotos')
+      .select(`
+        id_operadora,
+        id_rol,
+        operadoras!inner (
+          id,
+          nombre,
+          slug,
+          num_aesa
+        )
+      `)
+      .eq('id_piloto', user.id)
+      .eq('id_rol', 1); // Solo admins
+
+    setOperador(op);
+    setUsuario(piloto);
+    setOperadores(ops || []);
+    setLoading(false);
+  };
+
+  const cambiarOperador = (newSlug: string) => {
+    setOperadorModalOpen(false);
+    if (newSlug !== slug) {
+      // Cambia la URL manteniendo la misma página
+      const currentPage = pathname.split('/').pop();
+      router.push(`/operador/${newSlug}/${currentPage}`);
+    }
+  };
+
   const navigation = [
-    { name: 'Dashboard', href: '/operator', icon: LayoutDashboard },
-    { name: 'Proyectos', href: '/projects', icon: FolderKanban },
-    { name: 'Pilotos', href: '/pilots', icon: Users },
-    { name: 'Mi Flota', href: '/fleet', icon: Rocket },
-    { name: 'Vuelos', href: '/flights', icon: PlaneTakeoff },
+    { name: 'Dashboard', href: `/operador/${slug}/dashboard`, icon: LayoutDashboard },
+    { name: 'Mi Flota', href: `/operador/${slug}/fleet`, icon: Rocket },
+    { name: 'Pilotos', href: `/operador/${slug}/pilots`, icon: Users },
+    { name: 'Proyectos', href: `/operador/${slug}/projects`, icon: FolderKanban },
+    { name: 'Vuelos', href: `/operador/${slug}/flights`, icon: PlaneTakeoff },
   ];
 
-  // Bottom Nav Mobile (mismas opciones que navegación principal)
-  const bottomNav = navigation;
-
-  // Sección CUENTA (para sidebar y hamburguesa móvil)
   const accountMenu = [
-    { name: 'Mi Perfil', href: '/profile', icon: User },
-    { name: 'Configuración', href: '/settings', icon: Settings },
-    { name: 'Facturación', href: '/billing', icon: CreditCard },
+    { name: 'Mi Perfil', href: `/operador/${slug}/profile`, icon: User },
+    { name: 'Configuración', href: `/operador/${slug}/settings`, icon: Settings },
+    { name: 'Facturación', href: `/operador/${slug}/billing`, icon: CreditCard },
     { name: 'Mejorar Plan', href: '/pricing', icon: Star, highlight: true },
     { name: 'Centro de Ayuda', href: '/help', icon: HelpCircle },
-    { name: 'Vincular Telegram', href: '/settings?tab=integrations', icon: MessageSquare },
+    { name: 'Vincular Telegram', href: `/operador/${slug}/settings?tab=integrations`, icon: MessageSquare },
   ];
 
-  const isActive = (href: string) => {
-    if (href === '/operator') return pathname === '/operator';
-    return pathname === href || pathname.startsWith(href + '/');
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push('/login');
   };
 
-  const handleLogout = () => {
-    // TODO: Implementar logout con Supabase
-    window.location.href = '/login';
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Overlay móvil */}
+      {/* Overlay sidebar móvil */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
@@ -75,18 +143,72 @@ export default function DashboardLayout({
         />
       )}
 
-      {/* Sidebar Desktop - Con PRINCIPAL y CUENTA */}
+      {/* MODAL OPERADORES - Estilo Facebook Business Manager */}
+      {operadorModalOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={() => setOperadorModalOpen(false)}
+          />
+          <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-2xl shadow-2xl animate-slide-up max-h-[80vh] overflow-hidden lg:inset-auto lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:w-96 lg:rounded-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Cambiar operador</h3>
+              <button
+                onClick={() => setOperadorModalOpen(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Lista operadores */}
+            <div className="overflow-y-auto max-h-[calc(80vh-72px)]">
+              {operadores.map((op: any) => {
+                const isActive = op.operadoras.slug === slug;
+                return (
+                  <button
+                    key={op.id_operadora}
+                    onClick={() => cambiarOperador(op.operadoras.slug)}
+                    className={`w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors ${
+                      isActive ? 'bg-blue-50' : ''
+                    }`}
+                  >
+                    <div className={`h-12 w-12 rounded-full flex items-center justify-center ${
+                      isActive ? 'bg-blue-600' : 'bg-gray-100'
+                    }`}>
+                      <Building2 className={`h-6 w-6 ${isActive ? 'text-white' : 'text-gray-600'}`} />
+                    </div>
+                    <div className="flex-1 text-left min-w-0">
+                      <p className={`font-medium truncate ${isActive ? 'text-blue-900' : 'text-gray-900'}`}>
+                        {op.operadoras.nombre}
+                      </p>
+                      {op.operadoras.num_aesa && (
+                        <p className="text-sm text-gray-500 truncate">
+                          {op.operadoras.num_aesa}
+                        </p>
+                      )}
+                    </div>
+                    {isActive && (
+                      <Check className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Sidebar Desktop */}
       <aside className="hidden lg:flex fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 flex-col z-50">
-        {/* Logo */}
         <div className="h-16 px-4 flex items-center border-b border-gray-200">
-          <Link href="/operator" className="flex items-center gap-3">
-            <img src="/LogoSkreeo.png" alt="Skreeo Logo" className="h-10 md:h-12" loading="eager" />
+          <Link href={`/operador/${slug}/dashboard`}>
+            <img src="/LogoSkreeo.png" alt="Skreeo" className="h-10" />
           </Link>
         </div>
 
-        {/* Navegación */}
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-          {/* PRINCIPAL */}
           <p className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
             Gestión Operacional
           </p>
@@ -98,18 +220,15 @@ export default function DashboardLayout({
                 key={item.name}
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  active
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  active ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
                 <Icon className={`h-5 w-5 ${active ? 'text-blue-700' : 'text-gray-400'}`} />
-                <span>{item.name}</span>
+                {item.name}
               </Link>
             );
           })}
 
-          {/* CUENTA */}
           <div className="pt-4 mt-4 border-t border-gray-200">
             <p className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
               Cuenta
@@ -122,68 +241,61 @@ export default function DashboardLayout({
                   key={item.name}
                   href={item.href}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    active
-                      ? 'bg-blue-50 text-blue-700'
-                      : item.highlight
-                      ? 'text-blue-600 hover:bg-blue-50'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    active ? 'bg-blue-50 text-blue-700' : item.highlight ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
                   <Icon className={`h-5 w-5 ${active || item.highlight ? 'text-blue-600' : 'text-gray-400'}`} />
-                  <span>{item.name}</span>
+                  {item.name}
                 </Link>
               );
             })}
 
-            {/* Cerrar Sesión */}
             <button
               onClick={handleLogout}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors w-full mt-2"
             >
               <LogOut className="h-5 w-5" />
-              <span>Cerrar Sesión</span>
+              Cerrar Sesión
             </button>
           </div>
         </nav>
 
-        {/* Info usuario (solo visual, sin click) */}
+        {/* BOTÓN CAMBIAR OPERADOR - Estilo Facebook */}
         <div className="p-4 border-t border-gray-200">
-          <div className="flex items-center gap-3 px-2 py-2">
-            <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center text-sm font-semibold text-blue-700">
-              AS
+          <button
+            onClick={() => setOperadorModalOpen(true)}
+            className="flex items-center gap-3 px-3 py-3 w-full hover:bg-gray-50 rounded-lg transition-colors"
+          >
+            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+              <Building2 className="h-5 w-5 text-blue-700" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">Abraham Skreeo</p>
-              <p className="text-xs text-gray-500 truncate">Plan OPERADOR</p>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {operador?.nombre}
+              </p>
+              <p className="text-xs text-gray-500 truncate">
+                {usuario?.nombre}
+              </p>
             </div>
-          </div>
+          </button>
         </div>
       </aside>
 
-      {/* Sidebar Mobile (Hamburguesa) - SOLO CUENTA */}
+      {/* Sidebar Mobile */}
       <aside
         className={`lg:hidden fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 flex flex-col z-50 transform transition-transform duration-300 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Header */}
         <div className="h-16 px-4 flex items-center justify-between border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <img src="/LogoSkreeo.png" alt="Skreeo Logo" className="h-10 md:h-12" loading="eager" />
-          </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
-          >
+          <img src="/LogoSkreeo.png" alt="Skreeo" className="h-10" />
+          <button onClick={() => setSidebarOpen(false)} className="p-2 hover:bg-gray-100 rounded-lg">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* SOLO sección CUENTA en móvil */}
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-          <p className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            Cuenta
-          </p>
+          <p className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase">Cuenta</p>
           {accountMenu.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
@@ -193,115 +305,110 @@ export default function DashboardLayout({
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  active
-                    ? 'bg-blue-50 text-blue-700'
-                    : item.highlight
-                    ? 'text-blue-600 hover:bg-blue-50'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  active ? 'bg-blue-50 text-blue-700' : item.highlight ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
                 <Icon className={`h-5 w-5 ${active || item.highlight ? 'text-blue-600' : 'text-gray-400'}`} />
-                <span>{item.name}</span>
+                {item.name}
               </Link>
             );
           })}
 
-          {/* Cerrar Sesión */}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors w-full mt-2"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 w-full mt-2"
           >
             <LogOut className="h-5 w-5" />
-            <span>Cerrar Sesión</span>
+            Cerrar Sesión
           </button>
         </nav>
 
-        {/* Info usuario */}
         <div className="p-4 border-t border-gray-200">
-          <div className="flex items-center gap-3 px-2 py-2">
-            <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center text-sm font-semibold text-blue-700">
-              AS
+          <button
+            onClick={() => {
+              setSidebarOpen(false);
+              setOperadorModalOpen(true);
+            }}
+            className="flex items-center gap-3 px-3 py-3 w-full hover:bg-gray-50 rounded-lg"
+          >
+            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+              <Building2 className="h-5 w-5 text-blue-700" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">Abraham Skreeo</p>
-              <p className="text-xs text-gray-500 truncate">Plan OPERADOR</p>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-sm font-medium text-gray-900 truncate">{operador?.nombre}</p>
+              <p className="text-xs text-gray-500 truncate">{usuario?.nombre}</p>
             </div>
-          </div>
+          </button>
         </div>
       </aside>
 
-      {/* Contenido principal */}
       <div className="lg:ml-64 pb-20 lg:pb-0">
-        {/* Header móvil */}
         <header className="sticky top-0 z-30 bg-white border-b border-gray-200 lg:hidden">
           <div className="flex items-center h-16 px-4">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="p-2 -ml-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
-            >
+            <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 hover:bg-gray-100 rounded-lg">
               <Menu className="h-6 w-6" />
             </button>
-            <div className="flex-1 flex items-center justify-center">
-              <Link href="/operator" className="flex items-center gap-2">
-                <img src="/LogoSkreeo.png" alt="Skreeo Logo" className="h-10 md:h-12" loading="eager" />
-              </Link>
+            <div className="flex-1 flex justify-center">
+              <img src="/LogoSkreeo.png" alt="Skreeo" className="h-10" />
             </div>
-            <button className="p-2 -mr-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg relative">
+            <button className="p-2 -mr-2 hover:bg-gray-100 rounded-lg relative">
               <Bell className="h-5 w-5" />
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full"></span>
+              <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full" />
             </button>
           </div>
         </header>
 
-        {/* Header Desktop */}
         <header className="hidden lg:flex items-center justify-between h-16 px-8 bg-white border-b border-gray-200 sticky top-0 z-30">
-          {/* Búsqueda */}
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar vuelos, proyectos, UAS..."
-                className="pl-10 pr-4 py-2 w-80 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400"
-              />
-              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-0.5 text-xs font-semibold text-gray-400 bg-gray-100 border border-gray-200 rounded">
-                ⌘K
-              </kbd>
-            </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar vuelos, proyectos, UAS..."
+              className="pl-10 pr-4 py-2 w-80 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-0.5 text-xs text-gray-400 bg-gray-100 border border-gray-200 rounded">⌘K</kbd>
           </div>
-
-          {/* Enlaces y notificaciones */}
-          <div className="flex items-center gap-2">
-            <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg relative">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
-            </button>
-          </div>
+          <button className="p-2 hover:bg-gray-100 rounded-lg relative">
+            <Bell className="h-5 w-5" />
+            <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full" />
+          </button>
         </header>
 
-        {/* Contenido */}
         <main className="p-6 lg:p-8">{children}</main>
       </div>
 
-      {/* Bottom Navigation móvil - 5 opciones de navegación principal */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex items-center justify-around py-2 px-1 z-40 lg:hidden">
-        {bottomNav.map((item) => {
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-2 px-1 z-40 lg:hidden">
+        {navigation.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
           return (
             <Link
               key={item.name}
               href={item.href}
-              className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg flex-1 min-w-0 ${
+              className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg flex-1 ${
                 active ? 'text-blue-600' : 'text-gray-500'
               }`}
             >
-              <Icon className="h-6 w-6 flex-shrink-0" />
+              <Icon className="h-6 w-6" />
               <span className="text-xs font-medium truncate w-full text-center">{item.name}</span>
             </Link>
           );
         })}
       </nav>
+
+      <style jsx global>{`
+        @keyframes slide-up {
+          from {
+            transform: translateY(100%);
+          }
+          to {
+            transform: translateY(0);
+          }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
