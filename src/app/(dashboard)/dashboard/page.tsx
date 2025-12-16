@@ -140,13 +140,13 @@ export default async function OperatorPage() {
             </div>
             <div className="skreeo-card-body">
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <Link href="/fleet" className="group p-4 rounded-xl bg-[#F8FAFC] hover:bg-[#EFF6FF] transition-colors">
+                <Link href="/projects" className="group p-4 rounded-xl bg-[#F8FAFC] hover:bg-[#EFF6FF] transition-colors">
                   <div className="flex items-center gap-3 mb-2">
-                    <Plane className="h-5 w-5 text-[#3B82F6]" />
+                    <FolderKanban className="h-5 w-5 text-[#8B5CF6]" />
                     <ChevronRight className="h-4 w-4 text-[#94A3B8] ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <p className="text-2xl font-bold text-[#0F172A]">{uasActivos}</p>
-                  <p className="text-sm text-[#64748B]">UAS Activos</p>
+                  <p className="text-2xl font-bold text-[#0F172A]">{proyectosActivos}</p>
+                  <p className="text-sm text-[#64748B]">Proyectos Activos</p>
                 </Link>
 
                 <Link href="/pilots" className="group p-4 rounded-xl bg-[#F8FAFC] hover:bg-[#EFF6FF] transition-colors">
@@ -157,14 +157,14 @@ export default async function OperatorPage() {
                   <p className="text-2xl font-bold text-[#0F172A]">{totalPilotos}</p>
                   <p className="text-sm text-[#64748B]">Pilotos</p>
                 </Link>
-
-                <Link href="/projects" className="group p-4 rounded-xl bg-[#F8FAFC] hover:bg-[#EFF6FF] transition-colors">
+                
+                <Link href="/fleet" className="group p-4 rounded-xl bg-[#F8FAFC] hover:bg-[#EFF6FF] transition-colors">
                   <div className="flex items-center gap-3 mb-2">
-                    <FolderKanban className="h-5 w-5 text-[#8B5CF6]" />
+                    <Plane className="h-5 w-5 text-[#3B82F6]" />
                     <ChevronRight className="h-4 w-4 text-[#94A3B8] ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <p className="text-2xl font-bold text-[#0F172A]">{proyectosActivos}</p>
-                  <p className="text-sm text-[#64748B]">Proyectos Activos</p>
+                  <p className="text-2xl font-bold text-[#0F172A]">{uasActivos}</p>
+                  <p className="text-sm text-[#64748B]">UAS Activos</p>
                 </Link>
 
                 <Link href="/flights" className="group p-4 rounded-xl bg-[#F8FAFC] hover:bg-[#EFF6FF] transition-colors">
