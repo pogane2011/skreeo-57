@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   Plane,
+  Rocket,
   Users,
   FolderKanban,
   PlaneTakeoff,
@@ -37,7 +38,7 @@ export default function DashboardLayout({
     { name: 'Dashboard', href: '/operator', icon: LayoutDashboard },
     { name: 'Proyectos', href: '/projects', icon: FolderKanban },
     { name: 'Pilotos', href: '/pilots', icon: Users },
-    { name: 'Mi Flota', href: '/fleet', icon: Plane },
+    { name: 'Mi Flota', href: '/fleet', icon: Rocket },
     { name: 'Vuelos', href: '/flights', icon: PlaneTakeoff },
   ];
 
