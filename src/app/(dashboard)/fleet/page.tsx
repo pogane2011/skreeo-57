@@ -19,9 +19,53 @@ export default async function FleetPage() {
     { cookies: { get: (name) => cookies().get(name)?.value } }
   );
 
+  // OBTENER USUARIO ACTUAL
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <p className="text-gray-500">Debes iniciar sesión</p>
+      </div>
+    );
+  }
+
+  // OBTENER OPERADOR ACTIVO
+  const { data: operadorActivoData } = await supabase
+    .from('operadora_pilotos')
+    .select('id_operadora')
+    .eq('id_piloto', user.id)
+    .eq('operador_activo', true)
+    .single();
+
+  const operadorActivo = operadorActivoData?.id_operadora;
+
+  if (!operadorActivo) {
+    return (
+      <div className="space-y-6">
+        <div className="page-header">
+          <h1 className="page-title">Mi Flota</h1>
+        </div>
+        <div className="skreeo-card">
+          <div className="p-12">
+            <div className="empty-state">
+              <Plane className="empty-state-icon" />
+              <p className="empty-state-title">No hay operador activo</p>
+              <p className="empty-state-description">
+                Selecciona un operador en el sidebar para ver su flota
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // FILTRAR DRONES POR OPERADOR ACTIVO
   const { data: drones } = await supabase
     .from('drones')
     .select('*')
+    .eq('id_operadora', operadorActivo)
     .order('marca_modelo', { ascending: true });
 
   const totalUAS = drones?.length || 0;
