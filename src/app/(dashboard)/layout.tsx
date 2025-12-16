@@ -38,7 +38,6 @@ export default function DashboardLayout({
   const [operadores, setOperadores] = useState<any[]>([]);
   const [usuario, setUsuario] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [debug, setDebug] = useState<string>('');
 
   useEffect(() => {
     loadData();
@@ -48,50 +47,37 @@ export default function DashboardLayout({
     try {
       const supabase = createClient();
       
-      // 1. Obtener usuario
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      console.log('1. Auth user:', user?.id);
-      setDebug(`User ID: ${user?.id}`);
+      const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
         router.push('/login');
         return;
       }
 
-      // 2. Obtener piloto
-      const { data: piloto, error: pilotoError } = await supabase
+      const { data: piloto } = await supabase
         .from('pilotos')
         .select('nombre')
         .eq('id_piloto', user.id)
         .single();
       
-      console.log('2. Piloto:', piloto, 'Error:', pilotoError);
       setUsuario(piloto);
 
-      // 3. Obtener operadores - QUERY SIMPLIFICADA
-      const { data: relaciones, error: relacionesError } = await supabase
+      const { data: relaciones } = await supabase
         .from('operadora_pilotos')
         .select('id_operadora, id_rol')
         .eq('id_piloto', user.id);
-
-      console.log('3. Relaciones:', relaciones, 'Error:', relacionesError);
       
       if (!relaciones || relaciones.length === 0) {
-        setDebug(`No relaciones found for user ${user.id}`);
         setLoading(false);
         return;
       }
 
-      // 4. Obtener operadoras manualmente
       const operadorasIds = relaciones.map(r => r.id_operadora);
-      const { data: ops, error: opsError } = await supabase
+      const { data: ops } = await supabase
         .from('operadoras')
         .select('id, nombre, slug, num_aesa')
         .in('id', operadorasIds);
 
-      console.log('4. Operadoras:', ops, 'Error:', opsError);
-
-      // 5. Combinar datos
       const operadoresConRol = relaciones.map(rel => {
         const operadora = ops?.find(o => o.id === rel.id_operadora);
         return {
@@ -101,13 +87,10 @@ export default function DashboardLayout({
         };
       });
 
-      console.log('5. Operadores finales:', operadoresConRol);
       setOperadores(operadoresConRol);
-      setDebug(`${operadoresConRol.length} operadores cargados`);
       
     } catch (error) {
       console.error('Error loading data:', error);
-      setDebug(`Error: ${error}`);
     } finally {
       setLoading(false);
     }
@@ -146,9 +129,8 @@ export default function DashboardLayout({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-gray-500">{debug}</p>
       </div>
     );
   }
@@ -171,13 +153,6 @@ export default function DashboardLayout({
         </div>
 
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-          {/* DEBUG INFO */}
-          <div className="px-3 py-2 mb-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-            <p className="font-semibold text-yellow-800">Debug:</p>
-            <p className="text-yellow-700">{debug}</p>
-            <p className="text-yellow-700">Operadores: {operadores.length}</p>
-          </div>
-
           {/* MIS OPERADORES */}
           <div className="mb-4">
             <p className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -281,7 +256,7 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      {/* Sidebar Mobile - igual estructura */}
+      {/* Sidebar Mobile */}
       <aside
         className={`lg:hidden fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 flex flex-col z-50 transform transition-transform duration-300 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
