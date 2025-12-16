@@ -79,7 +79,7 @@ export default function NuevoOperadorPage() {
         
         {/* Header */}
         <Link
-          href="/operadores"
+          href="/operator"
           className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
         >
           <ArrowLeft className="h-4 w-4" />
