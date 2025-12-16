@@ -111,42 +111,67 @@ export default function DashboardLayout({
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       
-      if (!user) return;
-
-      console.log('Cambiando a operador:', idOperadora);
-
-      // 1. Poner todos en false
-      const { error: error1 } = await supabase
-        .from('operadora_pilotos')
-        .update({ operador_activo: false })
-        .eq('id_piloto', user.id);
-
-      if (error1) {
-        console.error('Error desactivando:', error1);
+      if (!user) {
+        console.error('No hay usuario autenticado');
+        setCambiandoOperador(false);
         return;
       }
 
+      console.log('=== INICIO CAMBIO OPERADOR ===');
+      console.log('User ID:', user.id);
+      console.log('Operador a activar:', idOperadora);
+      console.log('Tipo de idOperadora:', typeof idOperadora);
+
+      // 1. Poner todos en false
+      console.log('Paso 1: Desactivando todos los operadores...');
+      const { data: data1, error: error1 } = await supabase
+        .from('operadora_pilotos')
+        .update({ operador_activo: false })
+        .eq('id_piloto', user.id)
+        .select();
+
+      if (error1) {
+        console.error('ERROR en paso 1:', error1);
+        alert('Error desactivando operadores: ' + error1.message);
+        setCambiandoOperador(false);
+        return;
+      }
+      console.log('Paso 1 OK - Filas actualizadas:', data1);
+
       // 2. Poner el seleccionado en true
-      const { error: error2 } = await supabase
+      console.log('Paso 2: Activando operador seleccionado...');
+      const { data: data2, error: error2 } = await supabase
         .from('operadora_pilotos')
         .update({ operador_activo: true })
         .eq('id_piloto', user.id)
-        .eq('id_operadora', idOperadora);
+        .eq('id_operadora', idOperadora)
+        .select();
 
       if (error2) {
-        console.error('Error activando:', error2);
+        console.error('ERROR en paso 2:', error2);
+        alert('Error activando operador: ' + error2.message);
+        setCambiandoOperador(false);
+        return;
+      }
+      console.log('Paso 2 OK - Filas actualizadas:', data2);
+
+      if (!data2 || data2.length === 0) {
+        console.error('ADVERTENCIA: No se actualizó ninguna fila');
+        alert('No se encontró la relación con ese operador');
+        setCambiandoOperador(false);
         return;
       }
 
-      console.log('Operador cambiado, recargando página...');
+      console.log('=== CAMBIO EXITOSO, RECARGANDO... ===');
 
       // 3. RECARGAR PÁGINA COMPLETA
       setTimeout(() => {
         window.location.href = '/dashboard';
-      }, 300);
+      }, 500);
       
     } catch (error) {
-      console.error('Error cambiando operador:', error);
+      console.error('ERROR GENERAL:', error);
+      alert('Error al cambiar operador: ' + error);
       setCambiandoOperador(false);
     }
   };
