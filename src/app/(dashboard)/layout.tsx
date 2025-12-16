@@ -90,6 +90,13 @@ export default function DashboardLayout({
         };
       });
 
+      // ORDENAR: Operador activo PRIMERO
+      operadoresConRol.sort((a, b) => {
+        if (a.operador_activo && !b.operador_activo) return -1;
+        if (!a.operador_activo && b.operador_activo) return 1;
+        return 0;
+      });
+
       setOperadores(operadoresConRol);
       
       const activo = operadoresConRol.find(op => op.operador_activo);
