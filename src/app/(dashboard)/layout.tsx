@@ -23,7 +23,7 @@ import {
   LogOut,
   Building2,
   Check,
-  Settings,
+  ChevronDown,
 } from 'lucide-react';
 
 export default function DashboardLayout({
@@ -34,6 +34,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [accountPanelOpen, setAccountPanelOpen] = useState(false);
   const [operadores, setOperadores] = useState<any[]>([]);
   const [operadorActivo, setOperadorActivo] = useState<any>(null);
   const [usuario, setUsuario] = useState<any>(null);
@@ -90,7 +91,6 @@ export default function DashboardLayout({
 
       setOperadores(operadoresConRol);
       
-      // Operador activo
       const activo = operadoresConRol.find(op => op.operador_activo);
       setOperadorActivo(activo);
       
@@ -121,13 +121,8 @@ export default function DashboardLayout({
         .eq('id_piloto', user.id)
         .eq('id_operadora', idOperadora);
 
-      // 3. Recargar datos SIN cambiar URL
-      await loadData();
-      
-      // 4. Si estamos en dashboard, forzar recarga de página para actualizar datos
-      if (pathname === '/dashboard') {
-        window.location.reload();
-      }
+      // 3. RECARGAR PÁGINA COMPLETA para actualizar todos los datos
+      window.location.href = '/dashboard';
       
     } catch (error) {
       console.error('Error cambiando operador:', error);
@@ -142,7 +137,8 @@ export default function DashboardLayout({
     { name: 'Vuelos', href: '/flights', icon: PlaneTakeoff },
   ];
 
-  const accountMenu = [
+  const accountOptions = [
+    { name: 'Gestionar operadores', href: '/operadores', icon: Building2 },
     { name: 'Mi Perfil', href: '/profile', icon: User },
     { name: 'Configuración', href: '/settings', icon: SettingsIcon },
     { name: 'Facturación', href: '/billing', icon: CreditCard },
@@ -176,6 +172,58 @@ export default function DashboardLayout({
         />
       )}
 
+      {/* PANEL CUENTA ESTILO CLAUDE */}
+      {accountPanelOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={() => setAccountPanelOpen(false)}
+          />
+          <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-2xl shadow-2xl max-h-[80vh] overflow-hidden lg:inset-auto lg:bottom-20 lg:left-4 lg:w-80 lg:rounded-2xl animate-slide-up">
+            {/* Header panel */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Cuenta</h3>
+              <button
+                onClick={() => setAccountPanelOpen(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Opciones */}
+            <div className="overflow-y-auto max-h-[calc(80vh-72px)]">
+              <div className="p-2">
+                {accountOptions.map((option) => {
+                  const Icon = option.icon;
+                  return (
+                    <Link
+                      key={option.name}
+                      href={option.href}
+                      onClick={() => setAccountPanelOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors ${
+                        option.highlight ? 'text-blue-600' : 'text-gray-700'
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span className="font-medium">{option.name}</span>
+                    </Link>
+                  );
+                })}
+
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 w-full mt-2"
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span className="font-medium">Cerrar Sesión</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Sidebar Desktop */}
       <aside className="hidden lg:flex fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 flex-col z-50">
         <div className="h-16 px-4 flex items-center border-b border-gray-200">
@@ -202,10 +250,11 @@ export default function DashboardLayout({
                     <button
                       key={op.id_operadora}
                       onClick={() => cambiarOperador(op.id_operadora)}
+                      disabled={isActivo}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors w-full ${
                         isActivo
-                          ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-200'
-                          : 'text-gray-600 hover:bg-gray-100'
+                          ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-200 cursor-default'
+                          : 'text-gray-600 hover:bg-gray-100 cursor-pointer'
                       }`}
                     >
                       {op.operadoras?.logo_url ? (
@@ -235,15 +284,6 @@ export default function DashboardLayout({
                 })}
               </div>
             )}
-
-            {/* GESTIONAR OPERADORES */}
-            <Link
-              href="/operadores"
-              className="flex items-center gap-2 px-3 py-2 mt-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-            >
-              <Settings className="h-4 w-4" />
-              <span>Gestionar operadores</span>
-            </Link>
           </div>
 
           {/* GESTIÓN OPERACIONAL */}
@@ -268,53 +308,27 @@ export default function DashboardLayout({
               );
             })}
           </div>
-
-          {/* CUENTA */}
-          <div className="pt-4 mt-4 border-t border-gray-200">
-            <p className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Cuenta
-            </p>
-            {accountMenu.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    active ? 'bg-blue-50 text-blue-700' : item.highlight ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  <Icon className={`h-5 w-5 ${active || item.highlight ? 'text-blue-600' : 'text-gray-400'}`} />
-                  {item.name}
-                </Link>
-              );
-            })}
-
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors w-full mt-2"
-            >
-              <LogOut className="h-5 w-5" />
-              Cerrar Sesión
-            </button>
-          </div>
         </nav>
 
+        {/* BOTÓN CUENTA - ESTILO CLAUDE */}
         <div className="p-4 border-t border-gray-200">
-          <div className="flex items-center gap-3 px-2 py-2">
+          <button
+            onClick={() => setAccountPanelOpen(!accountPanelOpen)}
+            className="flex items-center gap-3 px-3 py-3 w-full hover:bg-gray-50 rounded-lg transition-colors"
+          >
             <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center text-sm font-semibold text-blue-700">
               {usuario?.nombre?.substring(0, 2).toUpperCase() || 'US'}
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 text-left min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">{usuario?.nombre || 'Usuario'}</p>
-              <p className="text-xs text-gray-500">Piloto</p>
+              <p className="text-xs text-gray-500">Plan OPERADOR</p>
             </div>
-          </div>
+            <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${accountPanelOpen ? 'rotate-180' : ''}`} />
+          </button>
         </div>
       </aside>
 
-      {/* Sidebar Mobile - MISMA estructura */}
+      {/* Sidebar Mobile */}
       <aside
         className={`lg:hidden fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 flex flex-col z-50 transform transition-transform duration-300 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -342,6 +356,7 @@ export default function DashboardLayout({
                       cambiarOperador(op.id_operadora);
                       setSidebarOpen(false);
                     }}
+                    disabled={isActivo}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full ${
                       isActivo
                         ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-200'
@@ -372,33 +387,23 @@ export default function DashboardLayout({
                 );
               })
             )}
-
-            <Link
-              href="/operadores"
-              onClick={() => setSidebarOpen(false)}
-              className="flex items-center gap-2 px-3 py-2 mt-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg"
-            >
-              <Settings className="h-4 w-4" />
-              <span>Gestionar operadores</span>
-            </Link>
           </div>
 
           <div className="pt-4 border-t border-gray-200">
-            <p className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase">Cuenta</p>
-            {accountMenu.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.href);
+            {accountOptions.map((option) => {
+              const Icon = option.icon;
+              const active = isActive(option.href);
               return (
                 <Link
-                  key={item.name}
-                  href={item.href}
+                  key={option.name}
+                  href={option.href}
                   onClick={() => setSidebarOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium ${
-                    active ? 'bg-blue-50 text-blue-700' : item.highlight ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-600 hover:bg-gray-100'
+                    active ? 'bg-blue-50 text-blue-700' : option.highlight ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  <Icon className={`h-5 w-5 ${active || item.highlight ? 'text-blue-600' : 'text-gray-400'}`} />
-                  {item.name}
+                  <Icon className={`h-5 w-5 ${active || option.highlight ? 'text-blue-600' : 'text-gray-400'}`} />
+                  {option.name}
                 </Link>
               );
             })}
@@ -409,18 +414,6 @@ export default function DashboardLayout({
             </button>
           </div>
         </nav>
-
-        <div className="p-4 border-t border-gray-200">
-          <div className="flex items-center gap-3 px-2 py-2">
-            <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center text-sm font-semibold text-blue-700">
-              {usuario?.nombre?.substring(0, 2).toUpperCase() || 'US'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{usuario?.nombre || 'Usuario'}</p>
-              <p className="text-xs text-gray-500">Piloto</p>
-            </div>
-          </div>
-        </div>
       </aside>
 
       <div className="lg:ml-64 pb-20 lg:pb-0">
@@ -476,6 +469,20 @@ export default function DashboardLayout({
           );
         })}
       </nav>
+
+      <style jsx global>{`
+        @keyframes slide-up {
+          from {
+            transform: translateY(100%);
+          }
+          to {
+            transform: translateY(0);
+          }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
