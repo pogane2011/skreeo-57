@@ -1,494 +1,777 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { 
   ArrowLeft,
-  MoreHorizontal,
   Info,
+  Settings,
   Wrench,
   Download,
-  Pencil,
+  Edit,
   Trash2,
+  Plus,
   FileText,
   FileSpreadsheet,
+  AlertTriangle,
+  Check,
+  X,
   Plane,
-  Calendar,
-  Clock,
-  Euro,
-  Shield,
-  Hash,
-  Tag,
-  Plus,
-  X
 } from 'lucide-react';
 
-export const dynamic = 'force-dynamic';
+type Tab = 'info' | 'operacional' | 'mantenimiento' | 'descargas' | 'editar' | 'eliminar';
 
-// Tipos
-interface UAS {
-  id_drone: number;
-  marca_modelo: string;
-  matricula: string;
-  alias: string | null;
-  categoria: string | null;
-  numero_serie: string | null;
-  poliza_seguro: string | null;
-  precio: number | null;
-  fecha_compra: string | null;
-  horas_uso: number;
-  vida_util_estimada: number | null;
-  tco_por_hora: number | null;
-  activo: boolean;
-}
-
-interface Mantenimiento {
-  id: number;
-  fecha: string;
-  precio: number;
-  horas_vuelo: number;
-  descripcion: string;
-}
-
-export default function UASDetailPage() {
+export default function DroneDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const [uas, setUAS] = useState<UAS | null>(null);
-  const [mantenimientos, setMantenimientos] = useState<Mantenimiento[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('general');
-  const [showActions, setShowActions] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const droneId = params.id as string;
 
-  const supabase = createClient();
+  const [activeTab, setActiveTab] = useState<Tab>('info');
+  const [drone, setDrone] = useState<any>(null);
+  const [mantenimientos, setMantenimientos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [operadorActivo, setOperadorActivo] = useState<string | null>(null);
+
+  // Form states para editar
+  const [formData, setFormData] = useState({
+    categoria: '',
+    marca_modelo: '',
+    num_matricula: '',
+    num_serie: '',
+    alias: '',
+    poliza: '',
+    fecha_compra: '',
+    precio: '',
+    vida_util: '',
+    estado: 'activo',
+  });
+
+  // Nuevo mantenimiento
+  const [nuevoMant, setNuevoMant] = useState({
+    fecha: new Date().toISOString().split('T')[0],
+    descripcion: '',
+    horas_vuelo: '',
+    precio: '',
+  });
+  const [showNuevoMant, setShowNuevoMant] = useState(false);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const { data: uasData } = await supabase
-        .from('drones')
-        .select('*')
-        .eq('id_drone', params.id)
-        .single();
+    loadData();
+  }, [droneId]);
+
+  const loadData = async () => {
+    try {
+      const supabase = createClient();
       
-      if (uasData) {
-        setUAS(uasData);
+      // Obtener usuario
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/login');
+        return;
       }
 
+      // Obtener operador activo
+      const { data: operadorData } = await supabase
+        .from('operadora_pilotos')
+        .select('id_operadora')
+        .eq('id_piloto', user.id)
+        .eq('operador_activo', true)
+        .single();
+
+      if (!operadorData) {
+        router.push('/fleet');
+        return;
+      }
+
+      setOperadorActivo(operadorData.id_operadora);
+
+      // Obtener drone
+      const { data: droneData, error: droneError } = await supabase
+        .from('drones')
+        .select('*')
+        .eq('id', droneId)
+        .eq('id_operadora', operadorData.id_operadora)
+        .single();
+
+      if (droneError || !droneData) {
+        console.error('Error:', droneError);
+        router.push('/fleet');
+        return;
+      }
+
+      setDrone(droneData);
+      setFormData({
+        categoria: droneData.categoria || '',
+        marca_modelo: droneData.marca_modelo || '',
+        num_matricula: droneData.num_matricula || '',
+        num_serie: droneData.num_serie || '',
+        alias: droneData.alias || '',
+        poliza: droneData.poliza || '',
+        fecha_compra: droneData.fecha_compra || '',
+        precio: droneData.precio?.toString() || '',
+        vida_util: droneData.vida_util?.toString() || '',
+        estado: droneData.estado || 'activo',
+      });
+
+      // Obtener mantenimientos
       const { data: mantData } = await supabase
         .from('mantenimiento')
         .select('*')
-        .eq('id_drone', params.id)
+        .eq('tipo_dispositivo', 'drone')
+        .eq('id_dispositivo', droneId)
         .order('fecha', { ascending: false });
-      
-      if (mantData) {
-        setMantenimientos(mantData);
-      }
 
+      setMantenimientos(mantData || []);
+
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
       setLoading(false);
-    };
+    }
+  };
 
-    fetchData();
-  }, [params.id]);
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      
+      const { error } = await supabase
+        .from('drones')
+        .update({
+          categoria: formData.categoria,
+          marca_modelo: formData.marca_modelo,
+          num_matricula: formData.num_matricula,
+          num_serie: formData.num_serie,
+          alias: formData.alias,
+          poliza: formData.poliza || null,
+          fecha_compra: formData.fecha_compra || null,
+          precio: parseFloat(formData.precio) || null,
+          vida_util: parseFloat(formData.vida_util) || null,
+          estado: formData.estado,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', droneId);
+
+      if (error) throw error;
+
+      alert('UAS actualizado correctamente');
+      loadData();
+      setActiveTab('info');
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al actualizar UAS');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddMantenimiento = async () => {
+    if (!nuevoMant.descripcion) {
+      alert('La descripción es obligatoria');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      
+      const { error } = await supabase
+        .from('mantenimiento')
+        .insert({
+          tipo_dispositivo: 'drone',
+          id_dispositivo: droneId,
+          fecha: nuevoMant.fecha,
+          descripcion: nuevoMant.descripcion,
+          horas_vuelo: nuevoMant.horas_vuelo || null,
+          precio: parseFloat(nuevoMant.precio) || null,
+        });
+
+      if (error) throw error;
+
+      alert('Mantenimiento registrado');
+      setNuevoMant({
+        fecha: new Date().toISOString().split('T')[0],
+        descripcion: '',
+        horas_vuelo: '',
+        precio: '',
+      });
+      setShowNuevoMant(false);
+      loadData();
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al registrar mantenimiento');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleDelete = async () => {
-    await supabase.from('drones').delete().eq('id_drone', params.id);
-    router.push('/fleet');
+    if (!confirm('¿Estás seguro de eliminar este UAS? Esta acción es irreversible.')) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      
+      const { error } = await supabase
+        .from('drones')
+        .update({
+          eliminado: true,
+          deleted_at: new Date().toISOString(),
+        })
+        .eq('id', droneId);
+
+      if (error) throw error;
+
+      alert('UAS eliminado correctamente');
+      router.push('/fleet');
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al eliminar UAS');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // Calcular salud
-  const getSalud = () => {
-    if (!uas?.vida_util_estimada || uas.vida_util_estimada === 0) return 100;
-    const usado = Math.round((uas.horas_uso / uas.vida_util_estimada) * 100);
-    return Math.max(0, 100 - usado);
-  };
-
-  const salud = getSalud();
+  const tabs = [
+    { id: 'info', label: 'Información', icon: Info },
+    { id: 'operacional', label: 'Operacional', icon: Settings },
+    { id: 'mantenimiento', label: 'Mantenimiento', icon: Wrench },
+    { id: 'descargas', label: 'Descargas', icon: Download },
+    { id: 'editar', label: 'Editar', icon: Edit },
+    { id: 'eliminar', label: 'Eliminar', icon: Trash2 },
+  ];
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="skreeo-spinner border-[#3B82F6]"></div>
+      <div className="flex items-center justify-center h-96">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  if (!uas) {
+  if (!drone) {
     return (
-      <div className="empty-state py-20">
-        <Plane className="empty-state-icon" />
-        <p className="empty-state-title">UAS no encontrado</p>
-        <Link href="/fleet" className="skreeo-btn-primary mt-4">
-          Volver a Mi Flota
-        </Link>
+      <div className="flex items-center justify-center h-96">
+        <p className="text-gray-500">UAS no encontrado</p>
       </div>
     );
   }
 
-  const tabs = [
-    { id: 'general', label: 'General', icon: Info },
-    { id: 'operacional', label: 'Operacional', icon: Clock },
-    { id: 'mantenimiento', label: 'Mantenimiento', icon: Wrench },
-    { id: 'descargas', label: 'Descargas', icon: Download },
-  ];
+  const saludPercent = drone.vida_util > 0 
+    ? Math.round((drone.horas_voladas / drone.vida_util) * 100)
+    : 0;
+  const saludRestante = 100 - saludPercent;
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="detail-header">
-        <Link href="/fleet" className="detail-back">
-          <ArrowLeft className="h-5 w-5" />
+      <div className="flex items-center gap-4">
+        <Link href="/fleet" className="p-2 hover:bg-gray-100 rounded-lg">
+          <ArrowLeft className="h-5 w-5 text-gray-600" />
         </Link>
-        
-        <div className="detail-title">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-[#DBEAFE] flex items-center justify-center">
-              <Plane className="h-6 w-6 text-[#3B82F6]" />
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold text-gray-900">{drone.marca_modelo}</h1>
+          <p className="text-gray-500">{drone.num_matricula} · {drone.alias || 'Sin alias'}</p>
+        </div>
+      </div>
+
+      {/* Tabs - Desktop */}
+      <div className="hidden md:flex border-b border-gray-200 overflow-x-auto">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          const isDelete = tab.id === 'eliminar';
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as Tab)}
+              className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
+                isActive
+                  ? 'border-blue-600 text-blue-600'
+                  : isDelete
+                  ? 'border-transparent text-red-600 hover:border-red-200'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span className="font-medium">{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tabs - Mobile (Dropdown) */}
+      <div className="md:hidden">
+        <select
+          value={activeTab}
+          onChange={(e) => setActiveTab(e.target.value as Tab)}
+          className="w-full px-4 py-3 border border-gray-200 rounded-lg"
+        >
+          {tabs.map((tab) => (
+            <option key={tab.id} value={tab.id}>
+              {tab.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Tab Content */}
+      <div className="skreeo-card p-6">
+        {/* INFORMACIÓN */}
+        {activeTab === 'info' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-sm text-gray-500">Categoría</p>
+                <p className="text-base font-semibold text-gray-900">{drone.categoria || '-'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Marca / Modelo</p>
+                <p className="text-base font-semibold text-gray-900">{drone.marca_modelo}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Alias</p>
+                <p className="text-base font-semibold text-gray-900">{drone.alias || '-'}</p>
+              </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-sm text-gray-500">Nº Serie</p>
+                <p className="text-base font-semibold text-gray-900 font-mono">{drone.num_serie || '-'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Nº Matrícula</p>
+                <p className="text-base font-semibold text-gray-900 font-mono">{drone.num_matricula}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Póliza Seguro</p>
+                <p className="text-base font-semibold text-gray-900">{drone.poliza || '-'}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-sm text-gray-500">Precio Adquisición</p>
+                <p className="text-base font-semibold text-gray-900">{drone.precio ? `${drone.precio.toFixed(2)} €` : '-'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Fecha Compra</p>
+                <p className="text-base font-semibold text-gray-900">{drone.fecha_compra || '-'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Estado</p>
+                <span className={`inline-block px-3 py-1 text-sm font-medium rounded-full ${
+                  drone.estado === 'activo' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {drone.estado === 'activo' ? 'Activo' : 'Inactivo'}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* OPERACIONAL */}
+        {activeTab === 'operacional' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-sm text-gray-500">TCO/Hora</p>
+                <p className="text-2xl font-bold text-green-600">{(drone.tco_por_hora || 0).toFixed(2)} €</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Horas Voladas</p>
+                <p className="text-2xl font-bold text-gray-900">{(drone.horas_voladas || 0).toFixed(1)} h</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Vida Útil Estimada</p>
+                <p className="text-2xl font-bold text-gray-900">{(drone.vida_util || 0).toFixed(0)} h</p>
+              </div>
+            </div>
+
             <div>
-              <h1 className="text-xl font-bold text-[#0F172A]">{uas.marca_modelo}</h1>
-              <p className="text-sm text-[#64748B]">
-                {uas.alias ? `${uas.alias} · ` : ''}{uas.matricula}
-              </p>
-            </div>
-            {uas.categoria && (
-              <span className="skreeo-badge skreeo-badge-info ml-2">
-                {uas.categoria}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Botón Acciones */}
-        <div className="detail-actions relative">
-          <span className={`skreeo-badge ${uas.activo ? 'skreeo-badge-success' : 'skreeo-badge-neutral'} mr-2`}>
-            {uas.activo ? 'Activo' : 'Inactivo'}
-          </span>
-          
-          <button 
-            onClick={() => setShowActions(!showActions)}
-            className="skreeo-btn-secondary"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-            <span className="hidden sm:inline">Acciones</span>
-          </button>
-
-          {/* Dropdown Acciones */}
-          {showActions && (
-            <>
-              <div 
-                className="fixed inset-0 z-40" 
-                onClick={() => setShowActions(false)}
-              />
-              <div className="skreeo-dropdown animate-fade-in">
-                <Link 
-                  href={`/fleet/${uas.id_drone}/edit`}
-                  className="skreeo-dropdown-item"
-                  onClick={() => setShowActions(false)}
-                >
-                  <Pencil className="h-4 w-4" />
-                  <span>Editar UAS</span>
-                </Link>
-                <button className="skreeo-dropdown-item w-full">
-                  <FileSpreadsheet className="h-4 w-4" />
-                  <span>Descargar CSV</span>
-                </button>
-                <button className="skreeo-dropdown-item w-full">
-                  <FileText className="h-4 w-4" />
-                  <span>Descargar PDF</span>
-                </button>
-                <div className="skreeo-dropdown-divider" />
-                <button 
-                  onClick={() => {
-                    setShowActions(false);
-                    setShowDeleteModal(true);
-                  }}
-                  className="skreeo-dropdown-item-danger w-full"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span>Eliminar UAS</span>
-                </button>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-gray-700">Salud del UAS</p>
+                <p className="text-sm font-semibold text-gray-900">{saludRestante}%</p>
               </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="skreeo-tabs overflow-x-auto hide-scrollbar">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`skreeo-tab flex items-center gap-2 whitespace-nowrap ${
-              activeTab === tab.id ? 'skreeo-tab-active' : ''
-            }`}
-          >
-            <tab.icon className="h-4 w-4" />
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Contenido Tab General */}
-      {activeTab === 'general' && (
-        <div className="space-y-6 animate-in">
-          <div className="detail-section">
-            <div className="skreeo-card-header">
-              <h3 className="detail-section-title">
-                <Info className="h-5 w-5 text-[#3B82F6]" />
-                Información General
-              </h3>
-            </div>
-            <div className="skreeo-card-body">
-              <div className="detail-grid">
-                <div>
-                  <p className="detail-label">Categoría</p>
-                  <p className="detail-value">{uas.categoria || '-'}</p>
-                </div>
-                <div>
-                  <p className="detail-label">Marca / Modelo</p>
-                  <p className="detail-value">{uas.marca_modelo}</p>
-                </div>
-                <div>
-                  <p className="detail-label">Alias</p>
-                  <p className="detail-value">{uas.alias || '-'}</p>
-                </div>
-                <div>
-                  <p className="detail-label">Nº Serie</p>
-                  <p className="detail-value font-mono">{uas.numero_serie || '-'}</p>
-                </div>
-                <div>
-                  <p className="detail-label">Nº Matrícula</p>
-                  <p className="detail-value font-mono">{uas.matricula}</p>
-                </div>
-                <div>
-                  <p className="detail-label">Póliza Seguro</p>
-                  <p className="detail-value">
-                    {uas.poliza_seguro ? (
-                      <span className="skreeo-badge skreeo-badge-success">Activa</span>
-                    ) : (
-                      <span className="skreeo-badge skreeo-badge-warning">Sin póliza</span>
-                    )}
-                  </p>
-                </div>
-                <div>
-                  <p className="detail-label">Precio Adquisición</p>
-                  <p className="detail-value">{uas.precio ? `${uas.precio.toLocaleString()} €` : '-'}</p>
-                </div>
-                <div>
-                  <p className="detail-label">Fecha Compra</p>
-                  <p className="detail-value">
-                    {uas.fecha_compra ? new Date(uas.fecha_compra).toLocaleDateString('es-ES') : '-'}
-                  </p>
-                </div>
-                <div>
-                  <p className="detail-label">Vida Útil Estimada</p>
-                  <p className="detail-value">{uas.vida_util_estimada ? `${uas.vida_util_estimada}h` : '-'}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Contenido Tab Operacional */}
-      {activeTab === 'operacional' && (
-        <div className="space-y-6 animate-in">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="kpi-card">
-              <div className="kpi-icon kpi-icon-info">
-                <Euro className="h-6 w-6" />
-              </div>
-              <p className="kpi-value">{(uas.tco_por_hora || 0).toFixed(2)} €</p>
-              <p className="kpi-label">TCO / Hora</p>
-            </div>
-            <div className="kpi-card">
-              <div className="kpi-icon kpi-icon-purple">
-                <Clock className="h-6 w-6" />
-              </div>
-              <p className="kpi-value">{(uas.horas_uso || 0).toFixed(2)}h</p>
-              <p className="kpi-label">Horas Voladas</p>
-            </div>
-            <div className="kpi-card">
-              <div className={`kpi-icon ${salud >= 50 ? 'kpi-icon-success' : 'kpi-icon-warning'}`}>
-                <Shield className="h-6 w-6" />
-              </div>
-              <p className="kpi-value">{salud}%</p>
-              <p className="kpi-label">Salud</p>
-              <div className="skreeo-progress mt-3">
-                <div 
-                  className={`skreeo-progress-bar ${
-                    salud >= 50 ? 'skreeo-progress-success' : 
-                    salud >= 20 ? 'skreeo-progress-warning' : 'skreeo-progress-error'
+              <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className={`h-full ${
+                    saludRestante >= 80 ? 'bg-green-500' :
+                    saludRestante >= 50 ? 'bg-yellow-500' :
+                    'bg-red-500'
                   }`}
-                  style={{ width: `${salud}%` }}
+                  style={{ width: `${saludRestante}%` }}
                 />
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {drone.vida_util > 0 
+                  ? `${(drone.vida_util - drone.horas_voladas).toFixed(1)} horas restantes`
+                  : 'Vida útil no configurada'
+                }
+              </p>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Contenido Tab Mantenimiento */}
-      {activeTab === 'mantenimiento' && (
-        <div className="space-y-6 animate-in">
-          <div className="skreeo-card">
-            <div className="skreeo-card-header flex items-center justify-between">
-              <h3 className="detail-section-title">
-                <Wrench className="h-5 w-5 text-[#3B82F6]" />
-                Libro de Mantenimiento
-              </h3>
-              <button className="skreeo-btn-primary skreeo-btn-sm">
+            {saludRestante < 20 && (
+              <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-red-900">Alerta de Riesgo</p>
+                  <p className="text-sm text-red-700">El UAS ha superado el {drone.alerta_riesgo}% de su vida útil. Considera programar mantenimiento.</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* MANTENIMIENTO */}
+        {activeTab === 'mantenimiento' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Libro de Mantenimiento</h3>
+              <button
+                onClick={() => setShowNuevoMant(!showNuevoMant)}
+                className="skreeo-btn-primary"
+              >
                 <Plus className="h-4 w-4" />
                 <span>Añadir</span>
               </button>
             </div>
-            <div className="skreeo-card-body p-0">
-              {mantenimientos.length > 0 ? (
-                <div className="divide-y divide-[#E2E8F0]">
-                  {mantenimientos.map((mant) => (
-                    <div key={mant.id} className="p-4 hover:bg-[#F8FAFC] transition-colors">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className="text-sm font-medium text-[#0F172A]">
-                              {new Date(mant.fecha).toLocaleDateString('es-ES')}
-                            </span>
-                            <span className="text-sm text-[#64748B]">
-                              {mant.horas_vuelo}h de vuelo
-                            </span>
+
+            {showNuevoMant && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4">
+                <h4 className="font-medium text-blue-900">Nuevo Mantenimiento</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                    <input
+                      type="date"
+                      value={nuevoMant.fecha}
+                      onChange={(e) => setNuevoMant({...nuevoMant, fecha: e.target.value})}
+                      className="skreeo-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Precio (€)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={nuevoMant.precio}
+                      onChange={(e) => setNuevoMant({...nuevoMant, precio: e.target.value})}
+                      className="skreeo-input"
+                      placeholder="25.00"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Horas de Vuelo</label>
+                  <input
+                    type="text"
+                    value={nuevoMant.horas_vuelo}
+                    onChange={(e) => setNuevoMant({...nuevoMant, horas_vuelo: e.target.value})}
+                    className="skreeo-input"
+                    placeholder="11:00:00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Descripción *</label>
+                  <textarea
+                    value={nuevoMant.descripcion}
+                    onChange={(e) => setNuevoMant({...nuevoMant, descripcion: e.target.value})}
+                    className="skreeo-input"
+                    rows={3}
+                    placeholder="Describe el mantenimiento realizado..."
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleAddMantenimiento}
+                    disabled={saving}
+                    className="skreeo-btn-primary"
+                  >
+                    <Check className="h-4 w-4" />
+                    <span>{saving ? 'Guardando...' : 'Guardar'}</span>
+                  </button>
+                  <button
+                    onClick={() => setShowNuevoMant(false)}
+                    className="skreeo-btn-secondary"
+                  >
+                    <X className="h-4 w-4" />
+                    <span>Cancelar</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {mantenimientos.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <Wrench className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No hay registros de mantenimiento</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {mantenimientos.map((mant) => (
+                  <div key={mant.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="text-sm text-gray-500">
+                          {new Date(mant.fecha).toLocaleDateString('es-ES')}
+                        </div>
+                        {mant.precio && (
+                          <div className="text-sm font-semibold text-green-600">
+                            {parseFloat(mant.precio).toFixed(2)} €
                           </div>
-                          <p className="text-sm text-[#475569]">{mant.descripcion}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold text-[#0F172A]">
-                            {mant.precio.toFixed(2)} €
-                          </p>
-                        </div>
+                        )}
+                        {mant.horas_vuelo && (
+                          <div className="text-sm text-gray-600">
+                            {mant.horas_vuelo}
+                          </div>
+                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="empty-state py-12">
-                  <Wrench className="empty-state-icon" />
-                  <p className="empty-state-title">Sin registros de mantenimiento</p>
-                  <p className="empty-state-description">
-                    Añade el primer registro de mantenimiento
-                  </p>
-                </div>
-              )}
-            </div>
+                    <p className="text-gray-900">{mant.descripcion}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Contenido Tab Descargas */}
-      {activeTab === 'descargas' && (
-        <div className="space-y-6 animate-in">
-          <div className="skreeo-card">
-            <div className="skreeo-card-header">
-              <h3 className="detail-section-title">
-                <Download className="h-5 w-5 text-[#3B82F6]" />
-                Descargas
-              </h3>
-            </div>
-            <div className="skreeo-card-body space-y-4">
+        {/* DESCARGAS */}
+        {activeTab === 'descargas' && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Exportar Datos</h3>
+            
+            <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+              <div className="flex items-center gap-3">
+                <FileText className="h-5 w-5 text-red-600" />
+                <div className="text-left">
+                  <p className="font-medium text-gray-900">Datos Técnicos del Dron (PDF)</p>
+                  <p className="text-sm text-gray-500">Información general y especificaciones</p>
+                </div>
+              </div>
+              <Download className="h-5 w-5 text-gray-400" />
+            </button>
+
+            <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+              <div className="flex items-center gap-3">
+                <FileText className="h-5 w-5 text-red-600" />
+                <div className="text-left">
+                  <p className="font-medium text-gray-900">Historial de Vuelos (PDF)</p>
+                  <p className="text-sm text-gray-500">Todos los vuelos realizados con este UAS</p>
+                </div>
+              </div>
+              <Download className="h-5 w-5 text-gray-400" />
+            </button>
+
+            <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+              <div className="flex items-center gap-3">
+                <FileSpreadsheet className="h-5 w-5 text-green-600" />
+                <div className="text-left">
+                  <p className="font-medium text-gray-900">Historial de Vuelos (CSV)</p>
+                  <p className="text-sm text-gray-500">Formato compatible con Excel</p>
+                </div>
+              </div>
+              <Download className="h-5 w-5 text-gray-400" />
+            </button>
+
+            <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+              <div className="flex items-center gap-3">
+                <FileText className="h-5 w-5 text-red-600" />
+                <div className="text-left">
+                  <p className="font-medium text-gray-900">Registros de Mantenimiento (PDF)</p>
+                  <p className="text-sm text-gray-500">Libro de mantenimiento completo</p>
+                </div>
+              </div>
+              <Download className="h-5 w-5 text-gray-400" />
+            </button>
+          </div>
+        )}
+
+        {/* EDITAR */}
+        {activeTab === 'editar' && (
+          <div className="space-y-6">
+            <h3 className="text-lg font-semibold text-gray-900">Editar UAS</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="skreeo-label">Rango de fechas (para Historial de Vuelos)</label>
-                <select className="skreeo-select">
-                  <option>Todos los registros</option>
-                  <option>Último mes</option>
-                  <option>Últimos 3 meses</option>
-                  <option>Último año</option>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Categoría *</label>
+                <select
+                  value={formData.categoria}
+                  onChange={(e) => setFormData({...formData, categoria: e.target.value})}
+                  className="skreeo-input"
+                >
+                  <option value="C0">C0</option>
+                  <option value="C1">C1</option>
+                  <option value="C2">C2</option>
+                  <option value="C3">C3</option>
+                  <option value="C4">C4</option>
                 </select>
               </div>
-              
               <div>
-                <label className="skreeo-label">Información incluida</label>
-                <div className="space-y-2 mt-2">
-                  {['Datos técnicos del UAS', 'Historial de vuelos', 'Registros de mantenimiento', 'Alarmas configuradas'].map((item) => (
-                    <label key={item} className="flex items-center gap-3 cursor-pointer">
-                      <input type="checkbox" className="h-4 w-4 rounded border-[#E2E8F0] text-[#3B82F6] focus:ring-[#3B82F6]" />
-                      <span className="text-sm text-[#475569]">{item}</span>
-                    </label>
-                  ))}
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Marca y Modelo *</label>
+                <input
+                  type="text"
+                  value={formData.marca_modelo}
+                  onChange={(e) => setFormData({...formData, marca_modelo: e.target.value})}
+                  className="skreeo-input"
+                  placeholder="DJI FPV"
+                />
               </div>
-
-              <div className="flex gap-3 pt-4">
-                <button className="skreeo-btn-primary">
-                  <FileSpreadsheet className="h-4 w-4" />
-                  <span>Descargar CSV</span>
-                </button>
-                <button className="skreeo-btn-secondary">
-                  <FileText className="h-4 w-4" />
-                  <span>Descargar PDF</span>
-                </button>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Alias</label>
+                <input
+                  type="text"
+                  value={formData.alias}
+                  onChange={(e) => setFormData({...formData, alias: e.target.value})}
+                  className="skreeo-input"
+                  placeholder="El Gafa"
+                />
               </div>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Modal Eliminar */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="skreeo-card max-w-md w-full animate-in">
-            <div className="skreeo-card-header flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-[#EF4444] flex items-center gap-2">
-                <Trash2 className="h-5 w-5" />
-                Eliminar UAS
-              </h3>
-              <button onClick={() => setShowDeleteModal(false)} className="skreeo-btn-icon">
-                <X className="h-5 w-5" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Número de Serie</label>
+                <input
+                  type="text"
+                  value={formData.num_serie}
+                  onChange={(e) => setFormData({...formData, num_serie: e.target.value})}
+                  className="skreeo-input"
+                  placeholder="37QBJ5WBD104AS"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Número de Matrícula *</label>
+                <input
+                  type="text"
+                  value={formData.num_matricula}
+                  onChange={(e) => setFormData({...formData, num_matricula: e.target.value})}
+                  className="skreeo-input"
+                  placeholder="GC2226RPA"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Póliza Seguro</label>
+                <input
+                  type="date"
+                  value={formData.poliza}
+                  onChange={(e) => setFormData({...formData, poliza: e.target.value})}
+                  className="skreeo-input"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Precio Adquisición (€)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.precio}
+                  onChange={(e) => setFormData({...formData, precio: e.target.value})}
+                  className="skreeo-input"
+                  placeholder="1800.00"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vida Útil Estimada (horas)</label>
+                <input
+                  type="number"
+                  value={formData.vida_util}
+                  onChange={(e) => setFormData({...formData, vida_util: e.target.value})}
+                  className="skreeo-input"
+                  placeholder="350"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Compra</label>
+                <input
+                  type="date"
+                  value={formData.fecha_compra}
+                  onChange={(e) => setFormData({...formData, fecha_compra: e.target.value})}
+                  className="skreeo-input"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+              <select
+                value={formData.estado}
+                onChange={(e) => setFormData({...formData, estado: e.target.value})}
+                className="skreeo-input max-w-xs"
+              >
+                <option value="activo">Activo</option>
+                <option value="inactivo">Inactivo</option>
+                <option value="mantenimiento">En Mantenimiento</option>
+              </select>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="skreeo-btn-primary"
+              >
+                {saving ? 'Guardando...' : 'Guardar Cambios'}
               </button>
-            </div>
-            <div className="skreeo-card-body">
-              <div className="skreeo-alert skreeo-alert-error mb-4">
-                <strong>¡Acción irreversible!</strong>
-                <p className="mt-1">Esta acción eliminará permanentemente el UAS <strong>{uas.marca_modelo}</strong> ({uas.alias}) y todos sus datos asociados:</p>
-                <ul className="mt-2 space-y-1 text-sm">
-                  <li>• Historial de vuelos</li>
-                  <li>• Registros de mantenimiento</li>
-                  <li>• Configuraciones de alarmas</li>
-                  <li>• Datos técnicos y documentación</li>
-                </ul>
-              </div>
-              
-              <div className="bg-[#F8FAFC] rounded-lg p-4 mb-4">
-                <p className="text-sm text-[#64748B]">Información del UAS a eliminar:</p>
-                <p className="text-sm font-medium text-[#0F172A] mt-1">
-                  Marca/Modelo: {uas.marca_modelo}
-                </p>
-                <p className="text-sm font-medium text-[#0F172A]">
-                  Matrícula: {uas.matricula}
-                </p>
-                <p className="text-sm font-medium text-[#0F172A]">
-                  Alias: {uas.alias || '-'}
-                </p>
-              </div>
-            </div>
-            <div className="skreeo-card-footer flex gap-3">
-              <button 
-                onClick={() => setShowDeleteModal(false)}
-                className="skreeo-btn-secondary flex-1"
+              <button
+                onClick={() => setActiveTab('info')}
+                className="skreeo-btn-secondary"
               >
                 Cancelar
               </button>
-              <button 
+            </div>
+          </div>
+        )}
+
+        {/* ELIMINAR */}
+        {activeTab === 'eliminar' && (
+          <div className="space-y-6">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+              <div className="flex items-start gap-3 mb-4">
+                <AlertTriangle className="h-6 w-6 text-red-600 flex-shrink-0" />
+                <div>
+                  <h3 className="text-lg font-semibold text-red-900 mb-2">¡Acción irreversible!</h3>
+                  <p className="text-sm text-red-700 mb-4">
+                    Esta acción eliminará permanentemente el dron <strong>{drone.marca_modelo}</strong> ({drone.alias}) y todos sus datos asociados:
+                  </p>
+                  <ul className="text-sm text-red-700 space-y-1 ml-4 list-disc">
+                    <li>Historial de vuelos</li>
+                    <li>Registros de mantenimiento</li>
+                    <li>Configuraciones de alarmas</li>
+                    <li>Datos técnicos y documentación</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg p-4 mb-6">
+                <p className="text-sm font-medium text-gray-700 mb-2">Información del dron a eliminar:</p>
+                <div className="space-y-1 text-sm">
+                  <p><span className="text-gray-500">Marca/Modelo:</span> <strong>{drone.marca_modelo}</strong></p>
+                  <p><span className="text-gray-500">Matrícula:</span> <strong>{drone.num_matricula}</strong></p>
+                  <p><span className="text-gray-500">Alias:</span> {drone.alias || '-'}</p>
+                </div>
+              </div>
+
+              <button
                 onClick={handleDelete}
-                className="skreeo-btn-danger flex-1"
+                disabled={saving}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
               >
-                <Trash2 className="h-4 w-4" />
-                Eliminar Definitivamente
+                <Trash2 className="h-5 w-5" />
+                <span>{saving ? 'Eliminando...' : 'Eliminar UAS Definitivamente'}</span>
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
