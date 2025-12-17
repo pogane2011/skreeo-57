@@ -19,9 +19,13 @@ import {
   Check,
   X,
   Plane,
+  PlaneTakeoff,
+  Clock,
+  TrendingUp,
+  Calendar,
 } from 'lucide-react';
 
-type Tab = 'info' | 'operacional' | 'mantenimiento' | 'descargas' | 'editar' | 'eliminar';
+type Tab = 'info' | 'operacional' | 'vuelos' | 'mantenimiento' | 'descargas' | 'editar' | 'eliminar';
 
 export default function DroneDetailPage() {
   const params = useParams();
@@ -30,10 +34,10 @@ export default function DroneDetailPage() {
 
   const [activeTab, setActiveTab] = useState<Tab>('info');
   const [drone, setDrone] = useState<any>(null);
+  const [vuelos, setVuelos] = useState<any[]>([]);
   const [mantenimientos, setMantenimientos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [operadorActivo, setOperadorActivo] = useState<string | null>(null);
 
   // Form states para editar
   const [formData, setFormData] = useState({
@@ -66,14 +70,12 @@ export default function DroneDetailPage() {
     try {
       const supabase = createClient();
       
-      // Obtener usuario
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.push('/login');
         return;
       }
 
-      // Obtener operador activo
       const { data: operadorData } = await supabase
         .from('operadora_pilotos')
         .select('id_operadora')
@@ -86,8 +88,6 @@ export default function DroneDetailPage() {
         return;
       }
 
-      setOperadorActivo(operadorData.id_operadora);
-
       // Obtener drone
       const { data: droneData, error: droneError } = await supabase
         .from('drones')
@@ -97,7 +97,6 @@ export default function DroneDetailPage() {
         .single();
 
       if (droneError || !droneData) {
-        console.error('Error:', droneError);
         router.push('/fleet');
         return;
       }
@@ -115,6 +114,20 @@ export default function DroneDetailPage() {
         vida_util: droneData.vida_util?.toString() || '',
         estado: droneData.estado || 'activo',
       });
+
+      // Obtener vuelos
+      const { data: vuelosData } = await supabase
+        .from('vuelos')
+        .select(`
+          *,
+          proyectos (nombre),
+          pilotos:id_piloto (nombre, apellidos)
+        `)
+        .eq('id_drone', droneId)
+        .order('fecha', { ascending: false })
+        .limit(50);
+
+      setVuelos(vuelosData || []);
 
       // Obtener mantenimientos
       const { data: mantData } = await supabase
@@ -237,9 +250,26 @@ export default function DroneDetailPage() {
     }
   };
 
+  const formatDuration = (duracion: any) => {
+    if (!duracion) return '0:00';
+    
+    // Si es un string de intervalo de PostgreSQL
+    if (typeof duracion === 'string') {
+      const match = duracion.match(/(\d+):(\d+):(\d+)/);
+      if (match) {
+        const hours = parseInt(match[1]);
+        const minutes = parseInt(match[2]);
+        return `${hours}:${minutes.toString().padStart(2, '0')}`;
+      }
+    }
+    
+    return duracion;
+  };
+
   const tabs = [
     { id: 'info', label: 'Información', icon: Info },
     { id: 'operacional', label: 'Operacional', icon: Settings },
+    { id: 'vuelos', label: 'Vuelos', icon: PlaneTakeoff },
     { id: 'mantenimiento', label: 'Mantenimiento', icon: Wrench },
     { id: 'descargas', label: 'Descargas', icon: Download },
     { id: 'editar', label: 'Editar', icon: Edit },
@@ -321,7 +351,7 @@ export default function DroneDetailPage() {
       </div>
 
       {/* Tab Content */}
-      <div className="skreeo-card p-6">
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
         {/* INFORMACIÓN */}
         {activeTab === 'info' && (
           <div className="space-y-6">
@@ -376,47 +406,81 @@ export default function DroneDetailPage() {
           </div>
         )}
 
-        {/* OPERACIONAL */}
+        {/* OPERACIONAL - TARJETAS */}
         {activeTab === 'operacional' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <p className="text-sm text-gray-500">TCO/Hora</p>
-                <p className="text-2xl font-bold text-green-600">{(drone.tco_por_hora || 0).toFixed(2)} €</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Tarjeta TCO */}
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
+                    <TrendingUp className="h-5 w-5 text-green-600" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-600">TCO/Hora</p>
+                </div>
+                <p className="text-3xl font-bold text-green-600">{(drone.tco_por_hora || 0).toFixed(2)} €</p>
+                <p className="text-xs text-gray-500 mt-1">Coste operacional</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Horas Voladas</p>
-                <p className="text-2xl font-bold text-gray-900">{(drone.horas_voladas || 0).toFixed(1)} h</p>
+
+              {/* Tarjeta Horas Voladas */}
+              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Clock className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-600">Horas Voladas</p>
+                </div>
+                <p className="text-3xl font-bold text-blue-600">{(drone.horas_voladas || 0).toFixed(1)} h</p>
+                <p className="text-xs text-gray-500 mt-1">Tiempo de vuelo total</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Vida Útil Estimada</p>
-                <p className="text-2xl font-bold text-gray-900">{(drone.vida_util || 0).toFixed(0)} h</p>
+
+              {/* Tarjeta Vida Útil */}
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <Calendar className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-600">Vida Útil</p>
+                </div>
+                <p className="text-3xl font-bold text-purple-600">{(drone.vida_util || 0).toFixed(0)} h</p>
+                <p className="text-xs text-gray-500 mt-1">Horas estimadas totales</p>
+              </div>
+
+              {/* Tarjeta Salud */}
+              <div className={`border-2 rounded-xl p-5 ${
+                saludRestante >= 80 ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-300' :
+                saludRestante >= 50 ? 'bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-300' :
+                'bg-gradient-to-br from-red-50 to-rose-50 border-red-300'
+              }`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
+                    saludRestante >= 80 ? 'bg-green-100' :
+                    saludRestante >= 50 ? 'bg-yellow-100' :
+                    'bg-red-100'
+                  }`}>
+                    <Plane className={`h-5 w-5 ${
+                      saludRestante >= 80 ? 'text-green-600' :
+                      saludRestante >= 50 ? 'text-yellow-600' :
+                      'text-red-600'
+                    }`} />
+                  </div>
+                  <p className="text-sm font-medium text-gray-600">Salud</p>
+                </div>
+                <p className={`text-3xl font-bold ${
+                  saludRestante >= 80 ? 'text-green-600' :
+                  saludRestante >= 50 ? 'text-yellow-600' :
+                  'text-red-600'
+                }`}>{saludRestante}%</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {drone.vida_util > 0 
+                    ? `${(drone.vida_util - drone.horas_voladas).toFixed(1)}h restantes`
+                    : 'Sin configurar'
+                  }
+                </p>
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-gray-700">Salud del UAS</p>
-                <p className="text-sm font-semibold text-gray-900">{saludRestante}%</p>
-              </div>
-              <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className={`h-full ${
-                    saludRestante >= 80 ? 'bg-green-500' :
-                    saludRestante >= 50 ? 'bg-yellow-500' :
-                    'bg-red-500'
-                  }`}
-                  style={{ width: `${saludRestante}%` }}
-                />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                {drone.vida_util > 0 
-                  ? `${(drone.vida_util - drone.horas_voladas).toFixed(1)} horas restantes`
-                  : 'Vida útil no configurada'
-                }
-              </p>
-            </div>
-
+            {/* Alerta de riesgo */}
             {saludRestante < 20 && (
               <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -429,6 +493,88 @@ export default function DroneDetailPage() {
           </div>
         )}
 
+        {/* VUELOS */}
+        {activeTab === 'vuelos' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Historial de Vuelos</h3>
+                <p className="text-sm text-gray-500">{vuelos.length} vuelos registrados</p>
+              </div>
+            </div>
+
+            {vuelos.length === 0 ? (
+              <div className="text-center py-12">
+                <PlaneTakeoff className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No hay vuelos registrados para este UAS</p>
+              </div>
+            ) : (
+              <>
+                {/* Desktop Table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Fecha</th>
+                        <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Proyecto</th>
+                        <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Piloto</th>
+                        <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Duración</th>
+                        <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">TCO</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {vuelos.map((vuelo) => (
+                        <tr key={vuelo.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {new Date(vuelo.fecha).toLocaleDateString('es-ES')}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {vuelo.proyectos?.nombre || '-'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {vuelo.pilotos?.nombre || '-'} {vuelo.pilotos?.apellidos || ''}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {formatDuration(vuelo.duracion)}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-semibold text-green-600">
+                            {(vuelo.coste_tco_dron || 0).toFixed(2)} €
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="md:hidden space-y-3">
+                  {vuelos.map((vuelo) => (
+                    <div key={vuelo.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-900">
+                          {new Date(vuelo.fecha).toLocaleDateString('es-ES')}
+                        </span>
+                        <span className="text-sm font-semibold text-green-600">
+                          {(vuelo.coste_tco_dron || 0).toFixed(2)} €
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-1">
+                        <strong>Proyecto:</strong> {vuelo.proyectos?.nombre || '-'}
+                      </p>
+                      <p className="text-sm text-gray-600 mb-1">
+                        <strong>Piloto:</strong> {vuelo.pilotos?.nombre || '-'}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <strong>Duración:</strong> {formatDuration(vuelo.duracion)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* MANTENIMIENTO */}
         {activeTab === 'mantenimiento' && (
           <div className="space-y-4">
@@ -436,7 +582,7 @@ export default function DroneDetailPage() {
               <h3 className="text-lg font-semibold text-gray-900">Libro de Mantenimiento</h3>
               <button
                 onClick={() => setShowNuevoMant(!showNuevoMant)}
-                className="skreeo-btn-primary"
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
               >
                 <Plus className="h-4 w-4" />
                 <span>Añadir</span>
@@ -453,7 +599,7 @@ export default function DroneDetailPage() {
                       type="date"
                       value={nuevoMant.fecha}
                       onChange={(e) => setNuevoMant({...nuevoMant, fecha: e.target.value})}
-                      className="skreeo-input"
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div>
@@ -463,7 +609,7 @@ export default function DroneDetailPage() {
                       step="0.01"
                       value={nuevoMant.precio}
                       onChange={(e) => setNuevoMant({...nuevoMant, precio: e.target.value})}
-                      className="skreeo-input"
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="25.00"
                     />
                   </div>
@@ -474,7 +620,7 @@ export default function DroneDetailPage() {
                     type="text"
                     value={nuevoMant.horas_vuelo}
                     onChange={(e) => setNuevoMant({...nuevoMant, horas_vuelo: e.target.value})}
-                    className="skreeo-input"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="11:00:00"
                   />
                 </div>
@@ -483,7 +629,7 @@ export default function DroneDetailPage() {
                   <textarea
                     value={nuevoMant.descripcion}
                     onChange={(e) => setNuevoMant({...nuevoMant, descripcion: e.target.value})}
-                    className="skreeo-input"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     rows={3}
                     placeholder="Describe el mantenimiento realizado..."
                   />
@@ -492,14 +638,14 @@ export default function DroneDetailPage() {
                   <button
                     onClick={handleAddMantenimiento}
                     disabled={saving}
-                    className="skreeo-btn-primary"
+                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                   >
                     <Check className="h-4 w-4" />
                     <span>{saving ? 'Guardando...' : 'Guardar'}</span>
                   </button>
                   <button
                     onClick={() => setShowNuevoMant(false)}
-                    className="skreeo-btn-secondary"
+                    className="inline-flex items-center gap-2 border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50"
                   >
                     <X className="h-4 w-4" />
                     <span>Cancelar</span>
@@ -604,7 +750,7 @@ export default function DroneDetailPage() {
                 <select
                   value={formData.categoria}
                   onChange={(e) => setFormData({...formData, categoria: e.target.value})}
-                  className="skreeo-input"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="C0">C0</option>
                   <option value="C1">C1</option>
@@ -619,7 +765,7 @@ export default function DroneDetailPage() {
                   type="text"
                   value={formData.marca_modelo}
                   onChange={(e) => setFormData({...formData, marca_modelo: e.target.value})}
-                  className="skreeo-input"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="DJI FPV"
                 />
               </div>
@@ -629,7 +775,7 @@ export default function DroneDetailPage() {
                   type="text"
                   value={formData.alias}
                   onChange={(e) => setFormData({...formData, alias: e.target.value})}
-                  className="skreeo-input"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="El Gafa"
                 />
               </div>
@@ -642,7 +788,7 @@ export default function DroneDetailPage() {
                   type="text"
                   value={formData.num_serie}
                   onChange={(e) => setFormData({...formData, num_serie: e.target.value})}
-                  className="skreeo-input"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="37QBJ5WBD104AS"
                 />
               </div>
@@ -652,7 +798,7 @@ export default function DroneDetailPage() {
                   type="text"
                   value={formData.num_matricula}
                   onChange={(e) => setFormData({...formData, num_matricula: e.target.value})}
-                  className="skreeo-input"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="GC2226RPA"
                 />
               </div>
@@ -662,7 +808,7 @@ export default function DroneDetailPage() {
                   type="date"
                   value={formData.poliza}
                   onChange={(e) => setFormData({...formData, poliza: e.target.value})}
-                  className="skreeo-input"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -675,7 +821,7 @@ export default function DroneDetailPage() {
                   step="0.01"
                   value={formData.precio}
                   onChange={(e) => setFormData({...formData, precio: e.target.value})}
-                  className="skreeo-input"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="1800.00"
                 />
               </div>
@@ -685,7 +831,7 @@ export default function DroneDetailPage() {
                   type="number"
                   value={formData.vida_util}
                   onChange={(e) => setFormData({...formData, vida_util: e.target.value})}
-                  className="skreeo-input"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="350"
                 />
               </div>
@@ -695,7 +841,7 @@ export default function DroneDetailPage() {
                   type="date"
                   value={formData.fecha_compra}
                   onChange={(e) => setFormData({...formData, fecha_compra: e.target.value})}
-                  className="skreeo-input"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -705,7 +851,7 @@ export default function DroneDetailPage() {
               <select
                 value={formData.estado}
                 onChange={(e) => setFormData({...formData, estado: e.target.value})}
-                className="skreeo-input max-w-xs"
+                className="w-full max-w-xs px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="activo">Activo</option>
                 <option value="inactivo">Inactivo</option>
@@ -717,13 +863,13 @@ export default function DroneDetailPage() {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="skreeo-btn-primary"
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
               >
                 {saving ? 'Guardando...' : 'Guardar Cambios'}
               </button>
               <button
                 onClick={() => setActiveTab('info')}
-                className="skreeo-btn-secondary"
+                className="inline-flex items-center gap-2 border border-gray-200 px-6 py-2 rounded-lg hover:bg-gray-50"
               >
                 Cancelar
               </button>
