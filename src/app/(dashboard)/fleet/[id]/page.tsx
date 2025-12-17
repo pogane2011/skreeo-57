@@ -25,7 +25,7 @@ import {
   Calendar,
 } from 'lucide-react';
 
-type Tab = 'info' | 'operacional' | 'vuelos' | 'mantenimiento' | 'descargas' | 'editar' | 'eliminar';
+type Tab = 'info' | 'operacional' | 'mantenimiento' | 'descargas' | 'editar' | 'eliminar';
 
 export default function DroneDetailPage() {
   const params = useParams();
@@ -39,7 +39,7 @@ export default function DroneDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Form states para editar
+  // Form states
   const [formData, setFormData] = useState({
     categoria: '',
     marca_modelo: '',
@@ -118,11 +118,7 @@ export default function DroneDetailPage() {
       // Obtener vuelos
       const { data: vuelosData } = await supabase
         .from('vuelos')
-        .select(`
-          *,
-          proyectos (nombre),
-          pilotos:id_piloto (nombre, apellidos)
-        `)
+        .select('*')
         .eq('id_drone', droneId)
         .order('fecha', { ascending: false })
         .limit(50);
@@ -253,7 +249,6 @@ export default function DroneDetailPage() {
   const formatDuration = (duracion: any) => {
     if (!duracion) return '0:00';
     
-    // Si es un string de intervalo de PostgreSQL
     if (typeof duracion === 'string') {
       const match = duracion.match(/(\d+):(\d+):(\d+)/);
       if (match) {
@@ -269,7 +264,6 @@ export default function DroneDetailPage() {
   const tabs = [
     { id: 'info', label: 'Información', icon: Info },
     { id: 'operacional', label: 'Operacional', icon: Settings },
-    { id: 'vuelos', label: 'Vuelos', icon: PlaneTakeoff },
     { id: 'mantenimiento', label: 'Mantenimiento', icon: Wrench },
     { id: 'descargas', label: 'Descargas', icon: Download },
     { id: 'editar', label: 'Editar', icon: Edit },
@@ -335,7 +329,7 @@ export default function DroneDetailPage() {
         })}
       </div>
 
-      {/* Tabs - Mobile (Dropdown) */}
+      {/* Tabs - Mobile */}
       <div className="md:hidden">
         <select
           value={activeTab}
@@ -406,172 +400,169 @@ export default function DroneDetailPage() {
           </div>
         )}
 
-        {/* OPERACIONAL - TARJETAS */}
+        {/* OPERACIONAL - TARJETAS + VUELOS */}
         {activeTab === 'operacional' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Tarjeta TCO */}
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
-                    <TrendingUp className="h-5 w-5 text-green-600" />
-                  </div>
-                  <p className="text-sm font-medium text-gray-600">TCO/Hora</p>
-                </div>
-                <p className="text-3xl font-bold text-green-600">{(drone.tco_por_hora || 0).toFixed(2)} €</p>
-                <p className="text-xs text-gray-500 mt-1">Coste operacional</p>
-              </div>
-
-              {/* Tarjeta Horas Voladas */}
-              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Clock className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <p className="text-sm font-medium text-gray-600">Horas Voladas</p>
-                </div>
-                <p className="text-3xl font-bold text-blue-600">{(drone.horas_voladas || 0).toFixed(1)} h</p>
-                <p className="text-xs text-gray-500 mt-1">Tiempo de vuelo total</p>
-              </div>
-
-              {/* Tarjeta Vida Útil */}
-              <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <Calendar className="h-5 w-5 text-purple-600" />
-                  </div>
-                  <p className="text-sm font-medium text-gray-600">Vida Útil</p>
-                </div>
-                <p className="text-3xl font-bold text-purple-600">{(drone.vida_util || 0).toFixed(0)} h</p>
-                <p className="text-xs text-gray-500 mt-1">Horas estimadas totales</p>
-              </div>
-
-              {/* Tarjeta Salud */}
-              <div className={`border-2 rounded-xl p-5 ${
-                saludRestante >= 80 ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-300' :
-                saludRestante >= 50 ? 'bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-300' :
-                'bg-gradient-to-br from-red-50 to-rose-50 border-red-300'
-              }`}>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
-                    saludRestante >= 80 ? 'bg-green-100' :
-                    saludRestante >= 50 ? 'bg-yellow-100' :
-                    'bg-red-100'
-                  }`}>
-                    <Plane className={`h-5 w-5 ${
-                      saludRestante >= 80 ? 'text-green-600' :
-                      saludRestante >= 50 ? 'text-yellow-600' :
-                      'text-red-600'
-                    }`} />
-                  </div>
-                  <p className="text-sm font-medium text-gray-600">Salud</p>
-                </div>
-                <p className={`text-3xl font-bold ${
-                  saludRestante >= 80 ? 'text-green-600' :
-                  saludRestante >= 50 ? 'text-yellow-600' :
-                  'text-red-600'
-                }`}>{saludRestante}%</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {drone.vida_util > 0 
-                    ? `${(drone.vida_util - drone.horas_voladas).toFixed(1)}h restantes`
-                    : 'Sin configurar'
-                  }
-                </p>
-              </div>
-            </div>
-
-            {/* Alerta de riesgo */}
-            {saludRestante < 20 && (
-              <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-red-900">Alerta de Riesgo</p>
-                  <p className="text-sm text-red-700">El UAS ha superado el {drone.alerta_riesgo}% de su vida útil. Considera programar mantenimiento.</p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* VUELOS */}
-        {activeTab === 'vuelos' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Historial de Vuelos</h3>
-                <p className="text-sm text-gray-500">{vuelos.length} vuelos registrados</p>
-              </div>
-            </div>
-
-            {vuelos.length === 0 ? (
-              <div className="text-center py-12">
-                <PlaneTakeoff className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">No hay vuelos registrados para este UAS</p>
-              </div>
-            ) : (
-              <>
-                {/* Desktop Table */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Fecha</th>
-                        <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Proyecto</th>
-                        <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Piloto</th>
-                        <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Duración</th>
-                        <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">TCO</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {vuelos.map((vuelo) => (
-                        <tr key={vuelo.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {new Date(vuelo.fecha).toLocaleDateString('es-ES')}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {vuelo.proyectos?.nombre || '-'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {vuelo.pilotos?.nombre || '-'} {vuelo.pilotos?.apellidos || ''}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {formatDuration(vuelo.duracion)}
-                          </td>
-                          <td className="px-4 py-3 text-sm font-semibold text-green-600">
-                            {(vuelo.coste_tco_dron || 0).toFixed(2)} €
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Mobile Cards */}
-                <div className="md:hidden space-y-3">
-                  {vuelos.map((vuelo) => (
-                    <div key={vuelo.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-gray-900">
-                          {new Date(vuelo.fecha).toLocaleDateString('es-ES')}
-                        </span>
-                        <span className="text-sm font-semibold text-green-600">
-                          {(vuelo.coste_tco_dron || 0).toFixed(2)} €
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-1">
-                        <strong>Proyecto:</strong> {vuelo.proyectos?.nombre || '-'}
-                      </p>
-                      <p className="text-sm text-gray-600 mb-1">
-                        <strong>Piloto:</strong> {vuelo.pilotos?.nombre || '-'}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        <strong>Duración:</strong> {formatDuration(vuelo.duracion)}
-                      </p>
+          <div className="space-y-8">
+            {/* Tarjetas de métricas */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Métricas Operacionales</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Tarjeta TCO */}
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
+                      <TrendingUp className="h-5 w-5 text-green-600" />
                     </div>
-                  ))}
+                    <p className="text-sm font-medium text-gray-600">TCO/Hora</p>
+                  </div>
+                  <p className="text-3xl font-bold text-green-600">{(drone.tco_por_hora || 0).toFixed(2)} €</p>
+                  <p className="text-xs text-gray-500 mt-1">Coste operacional</p>
                 </div>
-              </>
-            )}
+
+                {/* Tarjeta Horas */}
+                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Clock className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <p className="text-sm font-medium text-gray-600">Horas Voladas</p>
+                  </div>
+                  <p className="text-3xl font-bold text-blue-600">{(drone.horas_voladas || 0).toFixed(1)} h</p>
+                  <p className="text-xs text-gray-500 mt-1">Tiempo total de vuelo</p>
+                </div>
+
+                {/* Tarjeta Vida Útil */}
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <Calendar className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <p className="text-sm font-medium text-gray-600">Vida Útil</p>
+                  </div>
+                  <p className="text-3xl font-bold text-purple-600">{(drone.vida_util || 0).toFixed(0)} h</p>
+                  <p className="text-xs text-gray-500 mt-1">Horas estimadas totales</p>
+                </div>
+
+                {/* Tarjeta Salud */}
+                <div className={`border-2 rounded-xl p-5 ${
+                  saludRestante >= 80 ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-300' :
+                  saludRestante >= 50 ? 'bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-300' :
+                  'bg-gradient-to-br from-red-50 to-rose-50 border-red-300'
+                }`}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
+                      saludRestante >= 80 ? 'bg-green-100' :
+                      saludRestante >= 50 ? 'bg-yellow-100' :
+                      'bg-red-100'
+                    }`}>
+                      <Plane className={`h-5 w-5 ${
+                        saludRestante >= 80 ? 'text-green-600' :
+                        saludRestante >= 50 ? 'text-yellow-600' :
+                        'text-red-600'
+                      }`} />
+                    </div>
+                    <p className="text-sm font-medium text-gray-600">Salud</p>
+                  </div>
+                  <p className={`text-3xl font-bold ${
+                    saludRestante >= 80 ? 'text-green-600' :
+                    saludRestante >= 50 ? 'text-yellow-600' :
+                    'text-red-600'
+                  }`}>{saludRestante}%</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {drone.vida_util > 0 
+                      ? `${(drone.vida_util - drone.horas_voladas).toFixed(1)}h restantes`
+                      : 'Sin configurar'
+                    }
+                  </p>
+                </div>
+              </div>
+
+              {/* Alerta */}
+              {saludRestante < 20 && (
+                <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg mt-4">
+                  <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-red-900">Alerta de Riesgo</p>
+                    <p className="text-sm text-red-700">El UAS ha superado el {drone.alerta_riesgo}% de su vida útil. Programa mantenimiento.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Historial de Vuelos */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Historial de Vuelos</h3>
+              
+              {vuelos.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                  <PlaneTakeoff className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">No hay vuelos registrados</p>
+                </div>
+              ) : (
+                <>
+                  {/* Desktop */}
+                  <div className="hidden md:block overflow-x-auto border border-gray-200 rounded-lg">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Fecha</th>
+                          <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Hora Despegue</th>
+                          <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Duración</th>
+                          <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Actividad</th>
+                          <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">TCO</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {vuelos.map((vuelo) => (
+                          <tr key={vuelo.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm text-gray-900">
+                              {new Date(vuelo.fecha).toLocaleDateString('es-ES')}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900">
+                              {vuelo.hora_despegue || '-'}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900">
+                              {formatDuration(vuelo.duracion)}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900">
+                              {vuelo.actividad || '-'}
+                            </td>
+                            <td className="px-4 py-3 text-sm font-semibold text-green-600">
+                              {(vuelo.coste_tco_dron || 0).toFixed(2)} €
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile */}
+                  <div className="md:hidden space-y-3">
+                    {vuelos.map((vuelo) => (
+                      <div key={vuelo.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-900">
+                            {new Date(vuelo.fecha).toLocaleDateString('es-ES')}
+                          </span>
+                          <span className="text-sm font-semibold text-green-600">
+                            {(vuelo.coste_tco_dron || 0).toFixed(2)} €
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">
+                          <strong>Hora:</strong> {vuelo.hora_despegue || '-'}
+                        </p>
+                        <p className="text-sm text-gray-600 mb-1">
+                          <strong>Duración:</strong> {formatDuration(vuelo.duracion)}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          <strong>Actividad:</strong> {vuelo.actividad || '-'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
 
@@ -631,14 +622,14 @@ export default function DroneDetailPage() {
                     onChange={(e) => setNuevoMant({...nuevoMant, descripcion: e.target.value})}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     rows={3}
-                    placeholder="Describe el mantenimiento realizado..."
+                    placeholder="Describe el mantenimiento..."
                   />
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={handleAddMantenimiento}
                     disabled={saving}
-                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium"
                   >
                     <Check className="h-4 w-4" />
                     <span>{saving ? 'Guardando...' : 'Guardar'}</span>
@@ -697,19 +688,8 @@ export default function DroneDetailPage() {
               <div className="flex items-center gap-3">
                 <FileText className="h-5 w-5 text-red-600" />
                 <div className="text-left">
-                  <p className="font-medium text-gray-900">Datos Técnicos del Dron (PDF)</p>
-                  <p className="text-sm text-gray-500">Información general y especificaciones</p>
-                </div>
-              </div>
-              <Download className="h-5 w-5 text-gray-400" />
-            </button>
-
-            <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
-              <div className="flex items-center gap-3">
-                <FileText className="h-5 w-5 text-red-600" />
-                <div className="text-left">
-                  <p className="font-medium text-gray-900">Historial de Vuelos (PDF)</p>
-                  <p className="text-sm text-gray-500">Todos los vuelos realizados con este UAS</p>
+                  <p className="font-medium text-gray-900">Datos Técnicos (PDF)</p>
+                  <p className="text-sm text-gray-500">Información y especificaciones</p>
                 </div>
               </div>
               <Download className="h-5 w-5 text-gray-400" />
@@ -719,8 +699,8 @@ export default function DroneDetailPage() {
               <div className="flex items-center gap-3">
                 <FileSpreadsheet className="h-5 w-5 text-green-600" />
                 <div className="text-left">
-                  <p className="font-medium text-gray-900">Historial de Vuelos (CSV)</p>
-                  <p className="text-sm text-gray-500">Formato compatible con Excel</p>
+                  <p className="font-medium text-gray-900">Historial Vuelos (CSV)</p>
+                  <p className="text-sm text-gray-500">Compatible con Excel</p>
                 </div>
               </div>
               <Download className="h-5 w-5 text-gray-400" />
@@ -730,8 +710,8 @@ export default function DroneDetailPage() {
               <div className="flex items-center gap-3">
                 <FileText className="h-5 w-5 text-red-600" />
                 <div className="text-left">
-                  <p className="font-medium text-gray-900">Registros de Mantenimiento (PDF)</p>
-                  <p className="text-sm text-gray-500">Libro de mantenimiento completo</p>
+                  <p className="font-medium text-gray-900">Mantenimiento (PDF)</p>
+                  <p className="text-sm text-gray-500">Libro completo</p>
                 </div>
               </div>
               <Download className="h-5 w-5 text-gray-400" />
@@ -766,7 +746,6 @@ export default function DroneDetailPage() {
                   value={formData.marca_modelo}
                   onChange={(e) => setFormData({...formData, marca_modelo: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="DJI FPV"
                 />
               </div>
               <div>
@@ -776,30 +755,27 @@ export default function DroneDetailPage() {
                   value={formData.alias}
                   onChange={(e) => setFormData({...formData, alias: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="El Gafa"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Número de Serie</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nº Serie</label>
                 <input
                   type="text"
                   value={formData.num_serie}
                   onChange={(e) => setFormData({...formData, num_serie: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="37QBJ5WBD104AS"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Número de Matrícula *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nº Matrícula *</label>
                 <input
                   type="text"
                   value={formData.num_matricula}
                   onChange={(e) => setFormData({...formData, num_matricula: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="GC2226RPA"
                 />
               </div>
               <div>
@@ -815,24 +791,22 @@ export default function DroneDetailPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Precio Adquisición (€)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Precio (€)</label>
                 <input
                   type="number"
                   step="0.01"
                   value={formData.precio}
                   onChange={(e) => setFormData({...formData, precio: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="1800.00"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vida Útil Estimada (horas)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vida Útil (horas)</label>
                 <input
                   type="number"
                   value={formData.vida_util}
                   onChange={(e) => setFormData({...formData, vida_util: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="350"
                 />
               </div>
               <div>
@@ -863,7 +837,7 @@ export default function DroneDetailPage() {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium"
               >
                 {saving ? 'Guardando...' : 'Guardar Cambios'}
               </button>
@@ -886,19 +860,18 @@ export default function DroneDetailPage() {
                 <div>
                   <h3 className="text-lg font-semibold text-red-900 mb-2">¡Acción irreversible!</h3>
                   <p className="text-sm text-red-700 mb-4">
-                    Esta acción eliminará permanentemente el dron <strong>{drone.marca_modelo}</strong> ({drone.alias}) y todos sus datos asociados:
+                    Esta acción eliminará permanentemente el dron <strong>{drone.marca_modelo}</strong> ({drone.alias}) y todos sus datos.
                   </p>
                   <ul className="text-sm text-red-700 space-y-1 ml-4 list-disc">
                     <li>Historial de vuelos</li>
                     <li>Registros de mantenimiento</li>
-                    <li>Configuraciones de alarmas</li>
-                    <li>Datos técnicos y documentación</li>
+                    <li>Datos técnicos</li>
                   </ul>
                 </div>
               </div>
 
               <div className="bg-white rounded-lg p-4 mb-6">
-                <p className="text-sm font-medium text-gray-700 mb-2">Información del dron a eliminar:</p>
+                <p className="text-sm font-medium text-gray-700 mb-2">Dron a eliminar:</p>
                 <div className="space-y-1 text-sm">
                   <p><span className="text-gray-500">Marca/Modelo:</span> <strong>{drone.marca_modelo}</strong></p>
                   <p><span className="text-gray-500">Matrícula:</span> <strong>{drone.num_matricula}</strong></p>
@@ -909,7 +882,7 @@ export default function DroneDetailPage() {
               <button
                 onClick={handleDelete}
                 disabled={saving}
-                className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded-lg flex items-center justify-center gap-2"
               >
                 <Trash2 className="h-5 w-5" />
                 <span>{saving ? 'Eliminando...' : 'Eliminar UAS Definitivamente'}</span>
