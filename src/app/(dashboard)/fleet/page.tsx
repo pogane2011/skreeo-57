@@ -7,7 +7,8 @@ import {
   MoreHorizontal,
   Search,
   Filter,
-  ChevronRight
+  ChevronRight,
+  AlertCircle
 } from "lucide-react";
 
 export const dynamic = 'force-dynamic';
@@ -43,18 +44,16 @@ export default async function FleetPage() {
   if (!operadorActivo) {
     return (
       <div className="space-y-6">
-        <div className="page-header">
-          <h1 className="page-title">Mi Flota</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Mi Flota</h1>
         </div>
-        <div className="skreeo-card">
-          <div className="p-12">
-            <div className="empty-state">
-              <Plane className="empty-state-icon" />
-              <p className="empty-state-title">No hay operador activo</p>
-              <p className="empty-state-description">
-                Selecciona un operador en el sidebar para ver su flota
-              </p>
-            </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-12">
+          <div className="text-center">
+            <Plane className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-lg font-medium text-gray-900 mb-2">No hay operador activo</p>
+            <p className="text-gray-500">
+              Selecciona un operador en el sidebar para ver su flota
+            </p>
           </div>
         </div>
       </div>
@@ -66,150 +65,152 @@ export default async function FleetPage() {
     .from('drones')
     .select('*')
     .eq('id_operadora', operadorActivo)
+    .eq('eliminado', false)
     .order('marca_modelo', { ascending: true });
 
   const totalUAS = drones?.length || 0;
-  const uasActivos = drones?.filter(d => d.activo)?.length || 0;
+  const uasActivos = drones?.filter(d => d.estado === 'activo')?.length || 0;
 
   // Función para calcular el color de salud
-  const getSaludColor = (horasUso: number, vidaUtil: number) => {
-    if (!vidaUtil || vidaUtil === 0) return { percent: 0, color: 'skreeo-progress-success' };
-    const percent = Math.round((horasUso / vidaUtil) * 100);
-    if (percent >= 80) return { percent, color: 'skreeo-progress-error' };
-    if (percent >= 50) return { percent, color: 'skreeo-progress-warning' };
-    return { percent, color: 'skreeo-progress-success' };
+  const getSaludColor = (horasVoladas: number, vidaUtil: number) => {
+    if (!vidaUtil || vidaUtil === 0) return { percent: 0, color: 'bg-green-500', textColor: 'text-green-600' };
+    const percent = Math.round((horasVoladas / vidaUtil) * 100);
+    if (percent >= 80) return { percent, color: 'bg-red-500', textColor: 'text-red-600' };
+    if (percent >= 50) return { percent, color: 'bg-yellow-500', textColor: 'text-yellow-600' };
+    return { percent, color: 'bg-green-500', textColor: 'text-green-600' };
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="page-header">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="page-title">Mi Flota</h1>
-            <p className="page-subtitle">
-              {totalUAS} UAS registrados · {uasActivos} activos
-            </p>
-          </div>
-          
-          <Link href="/fleet/new" className="skreeo-btn-primary">
-            <Plus className="h-4 w-4" />
-            <span>Añadir UAS</span>
-          </Link>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Mi Flota</h1>
+          <p className="text-gray-500 mt-1">
+            {totalUAS} UAS registrados · {uasActivos} activos
+          </p>
         </div>
-      </div>
-
-      {/* Tabs UAS / Accesorios */}
-      <div className="skreeo-tabs w-fit">
-        <button className="skreeo-tab skreeo-tab-active">
-          UAS ({totalUAS})
-        </button>
-        <Link href="/fleet/accessories" className="skreeo-tab">
-          Accesorios
+        
+        <Link 
+          href="/fleet/new" 
+          className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+        >
+          <Plus className="h-4 w-4" />
+          <span>Añadir UAS</span>
         </Link>
       </div>
 
-      {/* Filtros */}
+      {/* Tabs */}
+      <div className="flex items-center gap-2 border-b border-gray-200">
+        <button className="px-4 py-2 border-b-2 border-blue-600 text-blue-600 font-medium">
+          UAS ({totalUAS})
+        </button>
+        <button className="px-4 py-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+          Accesorios
+        </button>
+      </div>
+
+      {/* Búsqueda y Filtros */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94A3B8]" />
-          <input 
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
             type="text"
             placeholder="Buscar por modelo, matrícula..."
-            className="skreeo-input pl-10"
+            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        <button className="skreeo-btn-secondary">
+        <button className="inline-flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">
           <Filter className="h-4 w-4" />
           <span>Filtros</span>
         </button>
       </div>
 
       {/* Tabla Desktop */}
-      <div className="skreeo-card hidden md:block overflow-hidden">
-        <table className="skreeo-table">
-          <thead className="skreeo-table-header">
+      <div className="hidden md:block bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="skreeo-table-th">UAS</th>
-              <th className="skreeo-table-th">Matrícula</th>
-              <th className="skreeo-table-th">TCO/Hora</th>
-              <th className="skreeo-table-th">Horas Voladas</th>
-              <th className="skreeo-table-th">Salud</th>
-              <th className="skreeo-table-th">Estado</th>
-              <th className="skreeo-table-th w-12"></th>
+              <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">UAS</th>
+              <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Matrícula</th>
+              <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">TCO/Hora</th>
+              <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Horas Voladas</th>
+              <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Salud</th>
+              <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Estado</th>
+              <th className="w-10"></th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-gray-200">
             {drones?.map((uas) => {
-              const salud = getSaludColor(uas.horas_uso || 0, uas.vida_util_estimada || 0);
+              const salud = getSaludColor(uas.horas_voladas || 0, uas.vida_util || 0);
+              const saludRestante = 100 - salud.percent;
+              
               return (
-                <tr key={uas.id_drone} className="skreeo-table-row">
-                  <td className="skreeo-table-td">
-                    <Link href={`/fleet/${uas.id_drone}`} className="flex items-center gap-3 group">
-                      <div className="h-10 w-10 rounded-lg bg-[#DBEAFE] flex items-center justify-center">
-                        <Plane className="h-5 w-5 text-[#3B82F6]" />
+                <tr key={uas.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">
+                    <Link href={`/fleet/${uas.id}`} className="flex items-center gap-3 group">
+                      <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                        <Plane className="h-5 w-5 text-blue-600" />
                       </div>
                       <div>
-                        <p className="font-medium text-[#0F172A] group-hover:text-[#3B82F6]">
-                          {uas.marca_modelo}
-                        </p>
-                        <p className="text-xs text-[#64748B]">
-                          {uas.alias || uas.categoria || 'Sin alias'}
-                        </p>
+                        <p className="font-medium text-gray-900 group-hover:text-blue-600">{uas.marca_modelo}</p>
+                        <p className="text-sm text-gray-500">{uas.alias || 'Sin alias'}</p>
                       </div>
                     </Link>
                   </td>
-                  <td className="skreeo-table-td">
-                    <span className="font-mono text-sm">{uas.matricula}</span>
+                  <td className="px-6 py-4">
+                    <span className="font-mono text-sm text-gray-900">{uas.num_matricula}</span>
                   </td>
-                  <td className="skreeo-table-td">
-                    <span className="font-semibold text-[#10B981]">
+                  <td className="px-6 py-4">
+                    <span className="font-semibold text-green-600">
                       {(uas.tco_por_hora || 0).toFixed(2)} €
                     </span>
                   </td>
-                  <td className="skreeo-table-td">
-                    {(uas.horas_uso || 0).toFixed(1)}h
+                  <td className="px-6 py-4">
+                    <span className="text-gray-900">{(uas.horas_voladas || 0).toFixed(1)}h</span>
                   </td>
-                  <td className="skreeo-table-td">
-                    <div className="flex items-center gap-3">
-                      <div className="skreeo-progress w-20">
-                        <div 
-                          className={`skreeo-progress-bar ${salud.color}`}
-                          style={{ width: `${100 - salud.percent}%` }}
-                        />
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 max-w-[120px]">
+                        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full ${salud.color}`}
+                            style={{ width: `${saludRestante}%` }}
+                          />
+                        </div>
                       </div>
-                      <span className="text-xs text-[#64748B]">{100 - salud.percent}%</span>
+                      <span className={`text-sm font-medium ${salud.textColor}`}>
+                        {saludRestante}%
+                      </span>
                     </div>
                   </td>
-                  <td className="skreeo-table-td">
-                    <span className={`skreeo-badge ${uas.activo ? 'skreeo-badge-success' : 'skreeo-badge-neutral'}`}>
-                      {uas.activo ? 'Activo' : 'Inactivo'}
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                      uas.estado === 'activo' 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {uas.estado === 'activo' ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
-                  <td className="skreeo-table-td">
-                    <div className="relative group">
-                      <button className="skreeo-btn-icon">
-                        <MoreHorizontal className="h-5 w-5" />
-                      </button>
-                      {/* Dropdown - Se activaría con JS/Estado */}
-                    </div>
+                  <td className="px-6 py-4">
+                    <button className="p-1 hover:bg-gray-100 rounded">
+                      <MoreHorizontal className="h-4 w-4 text-gray-400" />
+                    </button>
                   </td>
                 </tr>
               );
             })}
+            
             {(!drones || drones.length === 0) && (
               <tr>
-                <td colSpan={7} className="px-6 py-12">
-                  <div className="empty-state">
-                    <Plane className="empty-state-icon" />
-                    <p className="empty-state-title">No hay UAS registrados</p>
-                    <p className="empty-state-description">
-                      Añade tu primer UAS para empezar a gestionar tu flota
-                    </p>
-                    <Link href="/fleet/new" className="skreeo-btn-primary">
-                      <Plus className="h-4 w-4" />
-                      <span>Añadir UAS</span>
-                    </Link>
+                <td colSpan={7} className="px-6 py-12 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <Plane className="h-12 w-12 text-gray-300" />
+                    <div>
+                      <p className="text-gray-900 font-medium mb-1">No hay UAS registrados</p>
+                      <p className="text-sm text-gray-500">Añade tu primer UAS para empezar</p>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -218,75 +219,74 @@ export default async function FleetPage() {
         </table>
       </div>
 
-      {/* Cards Móvil */}
-      <div className="md:hidden space-y-3">
+      {/* Cards Mobile */}
+      <div className="md:hidden space-y-4">
         {drones?.map((uas) => {
-          const salud = getSaludColor(uas.horas_uso || 0, uas.vida_util_estimada || 0);
+          const salud = getSaludColor(uas.horas_voladas || 0, uas.vida_util || 0);
+          const saludRestante = 100 - salud.percent;
+          
           return (
             <Link 
-              key={uas.id_drone} 
-              href={`/fleet/${uas.id_drone}`}
-              className="skreeo-card-hover block"
+              key={uas.id} 
+              href={`/fleet/${uas.id}`}
+              className="block bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-sm transition-all"
             >
-              <div className="p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-xl bg-[#DBEAFE] flex items-center justify-center">
-                      <Plane className="h-6 w-6 text-[#3B82F6]" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-[#0F172A]">{uas.marca_modelo}</p>
-                      <p className="text-sm text-[#64748B] font-mono">{uas.matricula}</p>
-                    </div>
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <Plane className="h-6 w-6 text-blue-600" />
                   </div>
-                  <ChevronRight className="h-5 w-5 text-[#94A3B8]" />
-                </div>
-                
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-xs text-[#64748B]">TCO/Hora</p>
-                    <p className="text-sm font-semibold text-[#10B981]">
-                      {(uas.tco_por_hora || 0).toFixed(2)} €
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[#64748B]">Horas</p>
-                    <p className="text-sm font-semibold text-[#0F172A]">
-                      {(uas.horas_uso || 0).toFixed(1)}h
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[#64748B]">Salud</p>
-                    <div className="flex items-center gap-2">
-                      <div className="skreeo-progress flex-1">
-                        <div 
-                          className={`skreeo-progress-bar ${salud.color}`}
-                          style={{ width: `${100 - salud.percent}%` }}
-                        />
-                      </div>
-                      <span className="text-xs font-medium">{100 - salud.percent}%</span>
-                    </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-gray-900 truncate">{uas.marca_modelo}</p>
+                    <p className="text-sm text-gray-500">{uas.num_matricula}</p>
                   </div>
                 </div>
+                <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <p className="text-xs text-gray-500">TCO/Hora</p>
+                  <p className="text-sm font-semibold text-green-600">{(uas.tco_por_hora || 0).toFixed(2)} €</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Horas Voladas</p>
+                  <p className="text-sm font-semibold text-gray-900">{(uas.horas_voladas || 0).toFixed(1)}h</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Salud</span>
+                  <span className={`text-xs font-medium ${salud.textColor}`}>{saludRestante}%</span>
+                </div>
+                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${salud.color}`}
+                    style={{ width: `${saludRestante}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                  uas.estado === 'activo' 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {uas.estado === 'activo' ? 'Activo' : 'Inactivo'}
+                </span>
               </div>
             </Link>
           );
         })}
         
         {(!drones || drones.length === 0) && (
-          <div className="skreeo-card">
-            <div className="p-8">
-              <div className="empty-state">
-                <Plane className="empty-state-icon" />
-                <p className="empty-state-title">No hay UAS registrados</p>
-                <p className="empty-state-description">
-                  Añade tu primer UAS para empezar
-                </p>
-                <Link href="/fleet/new" className="skreeo-btn-primary">
-                  <Plus className="h-4 w-4" />
-                  <span>Añadir UAS</span>
-                </Link>
-              </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-12">
+            <div className="text-center">
+              <Plane className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-900 font-medium mb-1">No hay UAS registrados</p>
+              <p className="text-sm text-gray-500">Añade tu primer UAS para empezar</p>
             </div>
           </div>
         )}
