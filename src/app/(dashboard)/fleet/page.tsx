@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createClient } from '@/lib/supabase/client';
 import { 
   Plus,
-  Drone, 
+  Rocket, 
   Plane, 
   Settings,
   Search,
@@ -347,7 +347,7 @@ export default function FleetPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                            <Drone className="h-5 w-5 text-blue-600" />
+                            <Rocket className="h-5 w-5 text-blue-600" />
                           </div>
                           <div>
                             <p className="font-medium text-gray-900">{uas.marca_modelo}</p>
