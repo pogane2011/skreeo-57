@@ -69,6 +69,10 @@ export default function DroneDetailPage() {
     precio: '',
   });
   const [showNuevoMant, setShowNuevoMant] = useState(false);
+  
+  // Editar mantenimiento
+  const [editandoMant, setEditandoMant] = useState<any>(null);
+  const [showEditarMant, setShowEditarMant] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -249,6 +253,77 @@ export default function DroneDetailPage() {
     } catch (error) {
       console.error('Error:', error);
       alert('Error al registrar mantenimiento');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEditarMantenimiento = (mant: any) => {
+    setEditandoMant({
+      id: mant.id,
+      fecha: mant.fecha.split('T')[0],
+      descripcion: mant.descripcion,
+      horas_vuelo: mant.horas_vuelo || '',
+      precio: mant.precio?.toString() || '',
+    });
+    setShowEditarMant(true);
+  };
+
+  const handleUpdateMantenimiento = async () => {
+    if (!editandoMant.descripcion) {
+      alert('La descripción es obligatoria');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      
+      const { error } = await supabase
+        .from('mantenimiento_drones')
+        .update({
+          fecha: editandoMant.fecha,
+          descripcion: editandoMant.descripcion,
+          horas_vuelo: formatearHorasVuelo(editandoMant.horas_vuelo),
+          precio: parseFloat(editandoMant.precio) || null,
+        })
+        .eq('id', editandoMant.id);
+
+      if (error) throw error;
+
+      alert('Mantenimiento actualizado');
+      setShowEditarMant(false);
+      setEditandoMant(null);
+      loadData();
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al actualizar mantenimiento');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteMantenimiento = async (mantId: string) => {
+    if (!confirm('¿Estás seguro de eliminar este registro de mantenimiento?')) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      
+      const { error } = await supabase
+        .from('mantenimiento_drones')
+        .delete()
+        .eq('id', mantId);
+
+      if (error) throw error;
+
+      alert('Mantenimiento eliminado');
+      loadData();
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al eliminar mantenimiento');
     } finally {
       setSaving(false);
     }
@@ -716,27 +791,130 @@ export default function DroneDetailPage() {
             ) : (
               <div className="space-y-3">
                 {mantenimientos.map((mant) => (
-                  <div key={mant.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <div className="text-sm text-gray-500">
-                          {new Date(mant.fecha).toLocaleDateString('es-ES')}
+                  <div key={mant.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="text-sm text-gray-500">
+                            {new Date(mant.fecha).toLocaleDateString('es-ES')}
+                          </div>
+                          {mant.precio && (
+                            <div className="text-sm font-semibold text-green-600">
+                              {parseFloat(mant.precio).toFixed(2)} €
+                            </div>
+                          )}
+                          {mant.horas_vuelo && (
+                            <div className="text-sm text-gray-600">
+                              {mant.horas_vuelo}
+                            </div>
+                          )}
                         </div>
-                        {mant.precio && (
-                          <div className="text-sm font-semibold text-green-600">
-                            {parseFloat(mant.precio).toFixed(2)} €
-                          </div>
-                        )}
-                        {mant.horas_vuelo && (
-                          <div className="text-sm text-gray-600">
-                            {mant.horas_vuelo}
-                          </div>
-                        )}
+                        <p className="text-gray-900">{mant.descripcion}</p>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={() => handleEditarMantenimiento(mant)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Editar"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMantenimiento(mant.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
-                    <p className="text-gray-900">{mant.descripcion}</p>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Modal Editar Mantenimiento */}
+            {showEditarMant && editandoMant && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                  <h4 className="font-medium text-gray-900 text-lg mb-4">Editar Mantenimiento</h4>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                        <input
+                          type="date"
+                          value={editandoMant.fecha}
+                          onChange={(e) => setEditandoMant({...editandoMant, fecha: e.target.value})}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Precio (€)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editandoMant.precio}
+                          onChange={(e) => setEditandoMant({...editandoMant, precio: e.target.value})}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Horas de Vuelo
+                        <span className="text-xs text-gray-500 ml-2">(Ej: 10 o 10:30 o 10:30:00)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={editandoMant.horas_vuelo}
+                        onChange={(e) => setEditandoMant({...editandoMant, horas_vuelo: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="10 o 10:30 o 10:30:00"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Descripción *</label>
+                      <textarea
+                        value={editandoMant.descripcion}
+                        onChange={(e) => setEditandoMant({...editandoMant, descripcion: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        rows={3}
+                        placeholder="Cambio hélice delantera izquierda"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3 pt-4">
+                      <button
+                        onClick={handleUpdateMantenimiento}
+                        disabled={saving}
+                        className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
+                      >
+                        {saving ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <span>Guardando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Check className="h-4 w-4" />
+                            <span>Guardar Cambios</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowEditarMant(false);
+                          setEditandoMant(null);
+                        }}
+                        className="inline-flex items-center gap-2 border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50"
+                      >
+                        <X className="h-4 w-4" />
+                        <span>Cancelar</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -820,7 +998,210 @@ export default function DroneDetailPage() {
           </div>
         )}
 
-        {/* EDITAR Y ELIMINAR - (código igual que antes, lo omito por brevedad) */}
+        {/* EDITAR */}
+        {activeTab === 'editar' && (
+          <div className="space-y-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Editar UAS</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Categoría *</label>
+                <select
+                  value={formData.categoria}
+                  onChange={(e) => setFormData({...formData, categoria: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Seleccionar...</option>
+                  <option value="C0">C0</option>
+                  <option value="C1">C1</option>
+                  <option value="C2">C2</option>
+                  <option value="C3">C3</option>
+                  <option value="C4">C4</option>
+                  <option value="C5">C5</option>
+                  <option value="C6">C6</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Marca y Modelo *</label>
+                <input
+                  type="text"
+                  value={formData.marca_modelo}
+                  onChange={(e) => setFormData({...formData, marca_modelo: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="DJI Mavic 3"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Matrícula *</label>
+                <input
+                  type="text"
+                  value={formData.num_matricula}
+                  onChange={(e) => setFormData({...formData, num_matricula: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="ES-XXX-XXXX"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Número de Serie</label>
+                <input
+                  type="text"
+                  value={formData.num_serie}
+                  onChange={(e) => setFormData({...formData, num_serie: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="SN123456789"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Alias</label>
+                <input
+                  type="text"
+                  value={formData.alias}
+                  onChange={(e) => setFormData({...formData, alias: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Drone principal"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Póliza Seguro</label>
+                <input
+                  type="text"
+                  value={formData.poliza}
+                  onChange={(e) => setFormData({...formData, poliza: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="POL-12345"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Compra</label>
+                <input
+                  type="date"
+                  value={formData.fecha_compra}
+                  onChange={(e) => setFormData({...formData, fecha_compra: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Precio (€)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.precio}
+                  onChange={(e) => setFormData({...formData, precio: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="1500.00"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vida Útil (horas)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={formData.vida_util}
+                  onChange={(e) => setFormData({...formData, vida_util: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="1000"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                <select
+                  value={formData.estado}
+                  onChange={(e) => setFormData({...formData, estado: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="activo">Activo</option>
+                  <option value="mantenimiento">Mantenimiento</option>
+                  <option value="reparacion">Reparación</option>
+                  <option value="retirado">Retirado</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-6">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium disabled:opacity-50"
+              >
+                {saving ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-5 w-5" />
+                    <span>Guardar Cambios</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('info')}
+                className="inline-flex items-center gap-2 border border-gray-200 px-6 py-3 rounded-lg hover:bg-gray-50"
+              >
+                <X className="h-5 w-5" />
+                <span>Cancelar</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ELIMINAR */}
+        {activeTab === 'eliminar' && (
+          <div className="space-y-6">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+              <div className="flex items-start gap-4">
+                <AlertTriangle className="h-6 w-6 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-red-900 mb-2">Eliminar UAS</h3>
+                  <p className="text-red-700 mb-4">
+                    Esta acción es <strong>irreversible</strong>. Se eliminará permanentemente:
+                  </p>
+                  <ul className="list-disc list-inside text-red-700 space-y-1 mb-6">
+                    <li>Todos los datos del UAS</li>
+                    <li>Historial de vuelos asociados</li>
+                    <li>Registros de mantenimiento</li>
+                    <li>Alertas y notificaciones</li>
+                  </ul>
+                  <div className="bg-white border border-red-300 rounded-lg p-4 mb-6">
+                    <p className="text-sm text-gray-700 mb-2">
+                      <strong>UAS a eliminar:</strong>
+                    </p>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {drone?.marca_modelo} ({drone?.num_matricula})
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleDelete}
+                    disabled={saving}
+                    className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium disabled:opacity-50"
+                  >
+                    {saving ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Eliminando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="h-5 w-5" />
+                        <span>Confirmar Eliminación</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
