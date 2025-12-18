@@ -123,10 +123,9 @@ export default function AccesorioDetailPage() {
 
       // Obtener mantenimientos
       const { data: mantData } = await supabase
-        .from('mantenimiento')
+        .from('mantenimiento_accesorios')
         .select('*')
-        .eq('tipo_dispositivo', 'accesorio')
-        .eq('id_dispositivo', accesorioId)
+        .eq('id_accesorio', accesorioId)
         .order('fecha', { ascending: false });
 
       setMantenimientos(mantData || []);
@@ -182,13 +181,12 @@ export default function AccesorioDetailPage() {
       const supabase = createClient();
       
       const { error } = await supabase
-        .from('mantenimiento')
+        .from('mantenimiento_accesorios')
         .insert({
-          tipo_dispositivo: 'accesorio',
-          id_dispositivo: accesorioId,
+          id_accesorio: accesorioId,
           fecha: nuevoMant.fecha,
           descripcion: nuevoMant.descripcion,
-          ciclos_uso: nuevoMant.ciclos_uso || null,
+          ciclos_uso: parseInt(nuevoMant.ciclos_uso) || null,
           precio: parseFloat(nuevoMant.precio) || null,
         });
 
