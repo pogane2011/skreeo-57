@@ -5,12 +5,6 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { 
-  generarPDFDatosTecnicos,
-  generarPDFHistorialVuelos,
-  generarCSVVuelos,
-  generarPDFMantenimiento
-} from '@/lib/pdfGenerator';
-import { 
   ArrowLeft,
   Info,
   Settings,
@@ -24,7 +18,7 @@ import {
   AlertTriangle,
   Check,
   X,
-  Plane,
+  Battery,
   PlaneTakeoff,
   Clock,
   TrendingUp,
@@ -33,28 +27,24 @@ import {
 
 type Tab = 'info' | 'operacional' | 'mantenimiento' | 'descargas' | 'editar' | 'eliminar';
 
-export default function DroneDetailPage() {
+export default function AccesorioDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const droneId = params.id as string;
+  const accesorioId = params.id as string;
 
   const [activeTab, setActiveTab] = useState<Tab>('info');
-  const [drone, setDrone] = useState<any>(null);
-  const [operadora, setOperadora] = useState<any>(null);
+  const [accesorio, setAccesorio] = useState<any>(null);
   const [vuelos, setVuelos] = useState<any[]>([]);
   const [mantenimientos, setMantenimientos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [generatingPDF, setGeneratingPDF] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({
     categoria: '',
     marca_modelo: '',
-    num_matricula: '',
-    num_serie: '',
     alias: '',
-    poliza: '',
+    num_serie: '',
     fecha_compra: '',
     precio: '',
     vida_util: '',
@@ -65,7 +55,7 @@ export default function DroneDetailPage() {
   const [nuevoMant, setNuevoMant] = useState({
     fecha: new Date().toISOString().split('T')[0],
     descripcion: '',
-    horas_vuelo: '',
+    ciclos_uso: '',
     precio: '',
   });
   const [showNuevoMant, setShowNuevoMant] = useState(false);
@@ -76,7 +66,7 @@ export default function DroneDetailPage() {
 
   useEffect(() => {
     loadData();
-  }, [droneId]);
+  }, [accesorioId]);
 
   const loadData = async () => {
     try {
@@ -100,47 +90,36 @@ export default function DroneDetailPage() {
         return;
       }
 
-      // Obtener datos operadora
-      const { data: opData } = await supabase
-        .from('operadoras')
+      // Obtener accesorio
+      const { data: accesorioData, error: accesorioError } = await supabase
+        .from('accesorios')
         .select('*')
+        .eq('id', accesorioId)
         .eq('id_operadora', operadorData.id_operadora)
         .single();
 
-      setOperadora(opData);
-
-      // Obtener drone
-      const { data: droneData, error: droneError } = await supabase
-        .from('drones')
-        .select('*')
-        .eq('id', droneId)
-        .eq('id_operadora', operadorData.id_operadora)
-        .single();
-
-      if (droneError || !droneData) {
+      if (accesorioError || !accesorioData) {
         router.push('/fleet');
         return;
       }
 
-      setDrone(droneData);
+      setAccesorio(accesorioData);
       setFormData({
-        categoria: droneData.categoria || '',
-        marca_modelo: droneData.marca_modelo || '',
-        num_matricula: droneData.num_matricula || '',
-        num_serie: droneData.num_serie || '',
-        alias: droneData.alias || '',
-        poliza: droneData.poliza || '',
-        fecha_compra: droneData.fecha_compra || '',
-        precio: droneData.precio?.toString() || '',
-        vida_util: droneData.vida_util?.toString() || '',
-        estado: droneData.estado || 'activo',
+        categoria: accesorioData.categoria || '',
+        marca_modelo: accesorioData.marca_modelo || '',
+        alias: accesorioData.alias || '',
+        num_serie: accesorioData.num_serie || '',
+        fecha_compra: accesorioData.fecha_compra || '',
+        precio: accesorioData.precio?.toString() || '',
+        vida_util: accesorioData.vida_util?.toString() || '',
+        estado: accesorioData.estado || 'activo',
       });
 
-      // Obtener vuelos
+      // Obtener vuelos donde se usó este accesorio
       const { data: vuelosData } = await supabase
         .from('vuelos')
         .select('*')
-        .eq('id_drone', droneId)
+        .contains('accesorios_utilizados', [accesorioId])
         .order('fecha', { ascending: false })
         .limit(50);
 
@@ -148,9 +127,9 @@ export default function DroneDetailPage() {
 
       // Obtener mantenimientos
       const { data: mantData } = await supabase
-        .from('mantenimiento_drones')
+        .from('mantenimiento_accesorios')
         .select('*')
-        .eq('id_drone', droneId)
+        .eq('id_accesorio', accesorioId)
         .order('fecha', { ascending: false });
 
       setMantenimientos(mantData || []);
@@ -168,55 +147,31 @@ export default function DroneDetailPage() {
       const supabase = createClient();
       
       const { error } = await supabase
-        .from('drones')
+        .from('accesorios')
         .update({
           categoria: formData.categoria,
           marca_modelo: formData.marca_modelo,
-          num_matricula: formData.num_matricula,
-          num_serie: formData.num_serie,
           alias: formData.alias,
-          poliza: formData.poliza || null,
+          num_serie: formData.num_serie,
           fecha_compra: formData.fecha_compra || null,
           precio: parseFloat(formData.precio) || null,
           vida_util: parseFloat(formData.vida_util) || null,
           estado: formData.estado,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', droneId);
+        .eq('id', accesorioId);
 
       if (error) throw error;
 
-      alert('UAS actualizado correctamente');
+      alert('Accesorio actualizado correctamente');
       loadData();
       setActiveTab('info');
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al actualizar UAS');
+      alert('Error al actualizar accesorio');
     } finally {
       setSaving(false);
     }
-  };
-
-  // Helper: Formatear horas al formato TIME de PostgreSQL
-  const formatearHorasVuelo = (horas: string): string | null => {
-    if (!horas) return null;
-    
-    // Si ya tiene formato completo (10:30:00), dejarlo
-    if (/^\d{1,2}:\d{2}:\d{2}$/.test(horas)) {
-      return horas;
-    }
-    
-    // Si tiene formato parcial (10:30), añadir :00
-    if (/^\d{1,2}:\d{2}$/.test(horas)) {
-      return `${horas}:00`;
-    }
-    
-    // Si solo tiene horas (10), convertir a 10:00:00
-    if (/^\d{1,2}$/.test(horas)) {
-      return `${horas}:00:00`;
-    }
-    
-    return null;
   };
 
   const handleAddMantenimiento = async () => {
@@ -230,12 +185,12 @@ export default function DroneDetailPage() {
       const supabase = createClient();
       
       const { error } = await supabase
-        .from('mantenimiento_drones')
+        .from('mantenimiento_accesorios')
         .insert({
-          id_drone: droneId,
+          id_accesorio: accesorioId,
           fecha: nuevoMant.fecha,
           descripcion: nuevoMant.descripcion,
-          horas_vuelo: formatearHorasVuelo(nuevoMant.horas_vuelo),
+          ciclos_uso: parseInt(nuevoMant.ciclos_uso) || null,
           precio: parseFloat(nuevoMant.precio) || null,
         });
 
@@ -245,7 +200,7 @@ export default function DroneDetailPage() {
       setNuevoMant({
         fecha: new Date().toISOString().split('T')[0],
         descripcion: '',
-        horas_vuelo: '',
+        ciclos_uso: '',
         precio: '',
       });
       setShowNuevoMant(false);
@@ -263,7 +218,7 @@ export default function DroneDetailPage() {
       id: mant.id,
       fecha: mant.fecha.split('T')[0],
       descripcion: mant.descripcion,
-      horas_vuelo: mant.horas_vuelo || '',
+      ciclos_uso: mant.ciclos_uso?.toString() || '',
       precio: mant.precio?.toString() || '',
     });
     setShowEditarMant(true);
@@ -280,11 +235,11 @@ export default function DroneDetailPage() {
       const supabase = createClient();
       
       const { error } = await supabase
-        .from('mantenimiento_drones')
+        .from('mantenimiento_accesorios')
         .update({
           fecha: editandoMant.fecha,
           descripcion: editandoMant.descripcion,
-          horas_vuelo: formatearHorasVuelo(editandoMant.horas_vuelo),
+          ciclos_uso: parseInt(editandoMant.ciclos_uso) || null,
           precio: parseFloat(editandoMant.precio) || null,
         })
         .eq('id', editandoMant.id);
@@ -313,7 +268,7 @@ export default function DroneDetailPage() {
       const supabase = createClient();
       
       const { error } = await supabase
-        .from('mantenimiento_drones')
+        .from('mantenimiento_accesorios')
         .delete()
         .eq('id', mantId);
 
@@ -330,7 +285,7 @@ export default function DroneDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm('¿Estás seguro de eliminar este UAS? Esta acción es irreversible.')) {
+    if (!confirm('¿Estás seguro de eliminar este accesorio? Esta acción es irreversible.')) {
       return;
     }
 
@@ -339,68 +294,22 @@ export default function DroneDetailPage() {
       const supabase = createClient();
       
       const { error } = await supabase
-        .from('drones')
+        .from('accesorios')
         .update({
           eliminado: true,
           deleted_at: new Date().toISOString(),
         })
-        .eq('id', droneId);
+        .eq('id', accesorioId);
 
       if (error) throw error;
 
-      alert('UAS eliminado correctamente');
+      alert('Accesorio eliminado correctamente');
       router.push('/fleet');
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al eliminar UAS');
+      alert('Error al eliminar accesorio');
     } finally {
       setSaving(false);
-    }
-  };
-
-  // Funciones de descarga
-  const handleDescargarDatosTecnicos = () => {
-    setGeneratingPDF(true);
-    try {
-      generarPDFDatosTecnicos(drone, operadora);
-    } catch (error) {
-      console.error('Error generando PDF:', error);
-      alert('Error al generar PDF');
-    } finally {
-      setGeneratingPDF(false);
-    }
-  };
-
-  const handleDescargarHistorialVuelosPDF = () => {
-    setGeneratingPDF(true);
-    try {
-      generarPDFHistorialVuelos(drone, operadora, vuelos);
-    } catch (error) {
-      console.error('Error generando PDF:', error);
-      alert('Error al generar PDF');
-    } finally {
-      setGeneratingPDF(false);
-    }
-  };
-
-  const handleDescargarHistorialVuelosCSV = () => {
-    try {
-      generarCSVVuelos(drone, vuelos);
-    } catch (error) {
-      console.error('Error generando CSV:', error);
-      alert('Error al generar CSV');
-    }
-  };
-
-  const handleDescargarMantenimiento = () => {
-    setGeneratingPDF(true);
-    try {
-      generarPDFMantenimiento(drone, operadora, mantenimientos);
-    } catch (error) {
-      console.error('Error generando PDF:', error);
-      alert('Error al generar PDF');
-    } finally {
-      setGeneratingPDF(false);
     }
   };
 
@@ -434,16 +343,16 @@ export default function DroneDetailPage() {
     );
   }
 
-  if (!drone) {
+  if (!accesorio) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-gray-500">UAS no encontrado</p>
+        <p className="text-gray-500">Accesorio no encontrado</p>
       </div>
     );
   }
 
-  const saludPercent = drone.vida_util > 0 
-    ? Math.round((drone.horas_voladas / drone.vida_util) * 100)
+  const saludPercent = accesorio.vida_util > 0 
+    ? Math.round((accesorio.ciclos_usados / accesorio.vida_util) * 100)
     : 0;
   const saludRestante = 100 - saludPercent;
 
@@ -455,8 +364,8 @@ export default function DroneDetailPage() {
           <ArrowLeft className="h-5 w-5 text-gray-600" />
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-900">{drone.marca_modelo}</h1>
-          <p className="text-gray-500">{drone.num_matricula} · {drone.alias || 'Sin alias'}</p>
+          <h1 className="text-2xl font-bold text-gray-900">{accesorio.alias}</h1>
+          <p className="text-gray-500">{accesorio.categoria} · {accesorio.marca_modelo || 'Sin modelo'}</p>
         </div>
       </div>
 
@@ -508,58 +417,50 @@ export default function DroneDetailPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <p className="text-sm text-gray-500">Categoría</p>
-                <p className="text-base font-semibold text-gray-900">{drone.categoria || '-'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Marca / Modelo</p>
-                <p className="text-base font-semibold text-gray-900">{drone.marca_modelo}</p>
+                <p className="text-base font-semibold text-gray-900">{accesorio.categoria || '-'}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Alias</p>
-                <p className="text-base font-semibold text-gray-900">{drone.alias || '-'}</p>
+                <p className="text-base font-semibold text-gray-900">{accesorio.alias}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Marca / Modelo</p>
+                <p className="text-base font-semibold text-gray-900">{accesorio.marca_modelo || '-'}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <p className="text-sm text-gray-500">Nº Serie</p>
-                <p className="text-base font-semibold text-gray-900 font-mono">{drone.num_serie || '-'}</p>
+                <p className="text-base font-semibold text-gray-900 font-mono">{accesorio.num_serie || '-'}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Nº Matrícula</p>
-                <p className="text-base font-semibold text-gray-900 font-mono">{drone.num_matricula}</p>
+                <p className="text-sm text-gray-500">Precio Adquisición</p>
+                <p className="text-base font-semibold text-gray-900">{accesorio.precio ? `${accesorio.precio.toFixed(2)} €` : '-'}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Póliza Seguro</p>
-                <p className="text-base font-semibold text-gray-900">{drone.poliza || '-'}</p>
+                <p className="text-sm text-gray-500">Fecha Compra</p>
+                <p className="text-base font-semibold text-gray-900">{accesorio.fecha_compra || '-'}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <p className="text-sm text-gray-500">Precio Adquisición</p>
-                <p className="text-base font-semibold text-gray-900">{drone.precio ? `${drone.precio.toFixed(2)} €` : '-'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Fecha Compra</p>
-                <p className="text-base font-semibold text-gray-900">{drone.fecha_compra || '-'}</p>
-              </div>
-              <div>
                 <p className="text-sm text-gray-500">Estado</p>
                 <span className={`inline-block px-3 py-1 text-sm font-medium rounded-full ${
-                  drone.estado === 'activo' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                  accesorio.estado === 'activo' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
                 }`}>
-                  {drone.estado === 'activo' ? 'Activo' : 'Inactivo'}
+                  {accesorio.estado === 'activo' ? 'Activo' : 'Inactivo'}
                 </span>
               </div>
             </div>
           </div>
         )}
 
-        {/* OPERACIONAL - (incluye tarjetas + vuelos - código igual que antes) */}
+        {/* OPERACIONAL */}
         {activeTab === 'operacional' && (
           <div className="space-y-8">
-            {/* Tarjetas de métricas */}
+            {/* Tarjetas */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Métricas Operacionales</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -568,10 +469,10 @@ export default function DroneDetailPage() {
                     <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
                       <TrendingUp className="h-5 w-5 text-green-600" />
                     </div>
-                    <p className="text-sm font-medium text-gray-600">TCO/Hora</p>
+                    <p className="text-sm font-medium text-gray-600">TCO/Ciclo</p>
                   </div>
-                  <p className="text-3xl font-bold text-green-600">{(drone.tco_por_hora || 0).toFixed(2)} €</p>
-                  <p className="text-xs text-gray-500 mt-1">Coste operacional</p>
+                  <p className="text-3xl font-bold text-green-600">{(accesorio.tco_por_ciclo || 0).toFixed(2)} €</p>
+                  <p className="text-xs text-gray-500 mt-1">Coste por ciclo</p>
                 </div>
 
                 <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-5">
@@ -579,10 +480,10 @@ export default function DroneDetailPage() {
                     <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
                       <Clock className="h-5 w-5 text-blue-600" />
                     </div>
-                    <p className="text-sm font-medium text-gray-600">Horas Voladas</p>
+                    <p className="text-sm font-medium text-gray-600">Ciclos Usados</p>
                   </div>
-                  <p className="text-3xl font-bold text-blue-600">{(drone.horas_voladas || 0).toFixed(1)} h</p>
-                  <p className="text-xs text-gray-500 mt-1">Tiempo total de vuelo</p>
+                  <p className="text-3xl font-bold text-blue-600">{accesorio.ciclos_usados || 0}</p>
+                  <p className="text-xs text-gray-500 mt-1">Ciclos de uso</p>
                 </div>
 
                 <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-5">
@@ -592,8 +493,8 @@ export default function DroneDetailPage() {
                     </div>
                     <p className="text-sm font-medium text-gray-600">Vida Útil</p>
                   </div>
-                  <p className="text-3xl font-bold text-purple-600">{(drone.vida_util || 0).toFixed(0)} h</p>
-                  <p className="text-xs text-gray-500 mt-1">Horas estimadas totales</p>
+                  <p className="text-3xl font-bold text-purple-600">{accesorio.vida_util || 0}</p>
+                  <p className="text-xs text-gray-500 mt-1">Ciclos totales</p>
                 </div>
 
                 <div className={`border-2 rounded-xl p-5 ${
@@ -604,25 +505,22 @@ export default function DroneDetailPage() {
                   <div className="flex items-center gap-3 mb-3">
                     <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
                       saludRestante >= 80 ? 'bg-green-100' :
-                      saludRestante >= 50 ? 'bg-yellow-100' :
-                      'bg-red-100'
+                      saludRestante >= 50 ? 'bg-yellow-100' : 'bg-red-100'
                     }`}>
-                      <Plane className={`h-5 w-5 ${
+                      <Battery className={`h-5 w-5 ${
                         saludRestante >= 80 ? 'text-green-600' :
-                        saludRestante >= 50 ? 'text-yellow-600' :
-                        'text-red-600'
+                        saludRestante >= 50 ? 'text-yellow-600' : 'text-red-600'
                       }`} />
                     </div>
                     <p className="text-sm font-medium text-gray-600">Salud</p>
                   </div>
                   <p className={`text-3xl font-bold ${
                     saludRestante >= 80 ? 'text-green-600' :
-                    saludRestante >= 50 ? 'text-yellow-600' :
-                    'text-red-600'
+                    saludRestante >= 50 ? 'text-yellow-600' : 'text-red-600'
                   }`}>{saludRestante}%</p>
                   <p className="text-xs text-gray-500 mt-1">
-                    {drone.vida_util > 0 
-                      ? `${(drone.vida_util - drone.horas_voladas).toFixed(1)}h restantes`
+                    {accesorio.vida_util > 0 
+                      ? `${accesorio.vida_util - accesorio.ciclos_usados} ciclos restantes`
                       : 'Sin configurar'
                     }
                   </p>
@@ -634,7 +532,7 @@ export default function DroneDetailPage() {
                   <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="font-medium text-red-900">Alerta de Riesgo</p>
-                    <p className="text-sm text-red-700">El UAS ha superado el {drone.alerta_riesgo}% de su vida útil. Programa mantenimiento.</p>
+                    <p className="text-sm text-red-700">El accesorio ha superado su vida útil recomendada. Considera reemplazarlo.</p>
                   </div>
                 </div>
               )}
@@ -642,12 +540,12 @@ export default function DroneDetailPage() {
 
             {/* Historial de Vuelos */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Historial de Vuelos</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Vuelos Realizados</h3>
               
               {vuelos.length === 0 ? (
                 <div className="text-center py-12 bg-gray-50 rounded-lg">
                   <PlaneTakeoff className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No hay vuelos registrados</p>
+                  <p className="text-gray-500">No hay vuelos registrados con este accesorio</p>
                 </div>
               ) : (
                 <>
@@ -672,7 +570,7 @@ export default function DroneDetailPage() {
                             <td className="px-4 py-3 text-sm text-gray-900">{formatDuration(vuelo.duracion)}</td>
                             <td className="px-4 py-3 text-sm text-gray-900">{vuelo.actividad || '-'}</td>
                             <td className="px-4 py-3 text-sm font-semibold text-green-600">
-                              {(vuelo.coste_tco_dron || 0).toFixed(2)} €
+                              {(vuelo.coste_tco_accesorios || 0).toFixed(2)} €
                             </td>
                           </tr>
                         ))}
@@ -688,7 +586,7 @@ export default function DroneDetailPage() {
                             {new Date(vuelo.fecha).toLocaleDateString('es-ES')}
                           </span>
                           <span className="text-sm font-semibold text-green-600">
-                            {(vuelo.coste_tco_dron || 0).toFixed(2)} €
+                            {(vuelo.coste_tco_accesorios || 0).toFixed(2)} €
                           </span>
                         </div>
                         <p className="text-sm text-gray-600 mb-1"><strong>Hora:</strong> {vuelo.hora_despegue || '-'}</p>
@@ -703,7 +601,7 @@ export default function DroneDetailPage() {
           </div>
         )}
 
-        {/* MANTENIMIENTO - (código igual que antes) */}
+        {/* MANTENIMIENTO - Idéntico a UAS */}
         {activeTab === 'mantenimiento' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -742,16 +640,12 @@ export default function DroneDetailPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Horas de Vuelo
-                    <span className="text-xs text-gray-500 ml-2">(Ej: 10 o 10:30 o 10:30:00)</span>
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ciclos de Uso</label>
                   <input
-                    type="text"
-                    value={nuevoMant.horas_vuelo}
-                    onChange={(e) => setNuevoMant({...nuevoMant, horas_vuelo: e.target.value})}
+                    type="number"
+                    value={nuevoMant.ciclos_uso}
+                    onChange={(e) => setNuevoMant({...nuevoMant, ciclos_uso: e.target.value})}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="10 o 10:30 o 10:30:00"
                   />
                 </div>
                 <div>
@@ -803,9 +697,9 @@ export default function DroneDetailPage() {
                               {parseFloat(mant.precio).toFixed(2)} €
                             </div>
                           )}
-                          {mant.horas_vuelo && (
+                          {mant.ciclos_uso && (
                             <div className="text-sm text-gray-600">
-                              {mant.horas_vuelo}
+                              {mant.ciclos_uso} ciclos
                             </div>
                           )}
                         </div>
@@ -863,15 +757,14 @@ export default function DroneDetailPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Horas de Vuelo
-                        <span className="text-xs text-gray-500 ml-2">(Ej: 10 o 10:30 o 10:30:00)</span>
+                        Ciclos de Uso
                       </label>
                       <input
-                        type="text"
-                        value={editandoMant.horas_vuelo}
-                        onChange={(e) => setEditandoMant({...editandoMant, horas_vuelo: e.target.value})}
+                        type="number"
+                        value={editandoMant.ciclos_uso}
+                        onChange={(e) => setEditandoMant({...editandoMant, ciclos_uso: e.target.value})}
                         className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="10 o 10:30 o 10:30:00"
+                        placeholder="50"
                       />
                     </div>
                     <div>
@@ -881,7 +774,7 @@ export default function DroneDetailPage() {
                         onChange={(e) => setEditandoMant({...editandoMant, descripcion: e.target.value})}
                         className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         rows={3}
-                        placeholder="Cambio hélice delantera izquierda"
+                        placeholder="Recarga batería"
                       />
                     </div>
                     <div className="flex items-center gap-3 pt-4">
@@ -920,16 +813,12 @@ export default function DroneDetailPage() {
           </div>
         )}
 
-        {/* DESCARGAS - FUNCIONALES */}
+        {/* DESCARGAS */}
         {activeTab === 'descargas' && (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Exportar Datos</h3>
             
-            <button 
-              onClick={handleDescargarDatosTecnicos}
-              disabled={generatingPDF}
-              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-            >
+            <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
               <div className="flex items-center gap-3">
                 <FileText className="h-5 w-5 text-red-600" />
                 <div className="text-left">
@@ -940,65 +829,154 @@ export default function DroneDetailPage() {
               <Download className="h-5 w-5 text-gray-400" />
             </button>
 
-            <button 
-              onClick={handleDescargarHistorialVuelosPDF}
-              disabled={generatingPDF || vuelos.length === 0}
-              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-            >
-              <div className="flex items-center gap-3">
-                <FileText className="h-5 w-5 text-red-600" />
-                <div className="text-left">
-                  <p className="font-medium text-gray-900">Historial Vuelos (PDF)</p>
-                  <p className="text-sm text-gray-500">
-                    {vuelos.length > 0 ? `${vuelos.length} vuelos registrados` : 'No hay vuelos'}
-                  </p>
-                </div>
-              </div>
-              <Download className="h-5 w-5 text-gray-400" />
-            </button>
-
-            <button 
-              onClick={handleDescargarHistorialVuelosCSV}
-              disabled={vuelos.length === 0}
-              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-            >
-              <div className="flex items-center gap-3">
-                <FileSpreadsheet className="h-5 w-5 text-green-600" />
-                <div className="text-left">
-                  <p className="font-medium text-gray-900">Historial Vuelos (CSV)</p>
-                  <p className="text-sm text-gray-500">Compatible con Excel</p>
-                </div>
-              </div>
-              <Download className="h-5 w-5 text-gray-400" />
-            </button>
-
-            <button 
-              onClick={handleDescargarMantenimiento}
-              disabled={generatingPDF || mantenimientos.length === 0}
-              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-            >
+            <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
               <div className="flex items-center gap-3">
                 <FileText className="h-5 w-5 text-red-600" />
                 <div className="text-left">
                   <p className="font-medium text-gray-900">Mantenimiento (PDF)</p>
-                  <p className="text-sm text-gray-500">
-                    {mantenimientos.length > 0 ? `${mantenimientos.length} registros` : 'No hay registros'}
-                  </p>
+                  <p className="text-sm text-gray-500">Libro completo</p>
                 </div>
               </div>
               <Download className="h-5 w-5 text-gray-400" />
             </button>
-
-            {generatingPDF && (
-              <div className="flex items-center justify-center gap-2 text-blue-600 mt-4">
-                <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                <span className="text-sm">Generando PDF...</span>
-              </div>
-            )}
           </div>
         )}
 
-        {/* EDITAR Y ELIMINAR - (código igual que antes, lo omito por brevedad) */}
+        {/* EDITAR */}
+        {activeTab === 'editar' && (
+          <div className="space-y-6">
+            <h3 className="text-lg font-semibold text-gray-900">Editar Accesorio</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Categoría *</label>
+                <select
+                  value={formData.categoria}
+                  onChange={(e) => setFormData({...formData, categoria: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Batería">Batería</option>
+                  <option value="Hélice">Hélice</option>
+                  <option value="Cámara">Cámara</option>
+                  <option value="Control">Control</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Alias *</label>
+                <input
+                  type="text"
+                  value={formData.alias}
+                  onChange={(e) => setFormData({...formData, alias: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Marca y Modelo</label>
+                <input
+                  type="text"
+                  value={formData.marca_modelo}
+                  onChange={(e) => setFormData({...formData, marca_modelo: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nº Serie</label>
+                <input
+                  type="text"
+                  value={formData.num_serie}
+                  onChange={(e) => setFormData({...formData, num_serie: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Precio (€)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.precio}
+                  onChange={(e) => setFormData({...formData, precio: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vida Útil (ciclos)</label>
+                <input
+                  type="number"
+                  value={formData.vida_util}
+                  onChange={(e) => setFormData({...formData, vida_util: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+              <select
+                value={formData.estado}
+                onChange={(e) => setFormData({...formData, estado: e.target.value})}
+                className="w-full max-w-xs px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="activo">Activo</option>
+                <option value="inactivo">Inactivo</option>
+              </select>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium"
+              >
+                {saving ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+              <button
+                onClick={() => setActiveTab('info')}
+                className="inline-flex items-center gap-2 border border-gray-200 px-6 py-2 rounded-lg hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ELIMINAR */}
+        {activeTab === 'eliminar' && (
+          <div className="space-y-6">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+              <div className="flex items-start gap-3 mb-4">
+                <AlertTriangle className="h-6 w-6 text-red-600 flex-shrink-0" />
+                <div>
+                  <h3 className="text-lg font-semibold text-red-900 mb-2">¡Acción irreversible!</h3>
+                  <p className="text-sm text-red-700 mb-4">
+                    Esta acción eliminará permanentemente el accesorio <strong>{accesorio.alias}</strong> y todos sus datos.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg p-4 mb-6">
+                <p className="text-sm font-medium text-gray-700 mb-2">Accesorio a eliminar:</p>
+                <div className="space-y-1 text-sm">
+                  <p><span className="text-gray-500">Alias:</span> <strong>{accesorio.alias}</strong></p>
+                  <p><span className="text-gray-500">Categoría:</span> <strong>{accesorio.categoria}</strong></p>
+                  <p><span className="text-gray-500">Marca/Modelo:</span> {accesorio.marca_modelo || '-'}</p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleDelete}
+                disabled={saving}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded-lg flex items-center justify-center gap-2"
+              >
+                <Trash2 className="h-5 w-5" />
+                <span>{saving ? 'Eliminando...' : 'Eliminar Accesorio Definitivamente'}</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
