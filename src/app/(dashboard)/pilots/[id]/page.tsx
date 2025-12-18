@@ -7,14 +7,17 @@ import { createClient } from '@/lib/supabase/client';
 import { 
   ArrowLeft,
   Info,
-  BarChart3,
+  Settings,
   Edit,
   Trash2,
   Check,
   X,
   AlertTriangle,
+  Plane,
   PlaneTakeoff,
   Clock,
+  TrendingUp,
+  Calendar,
   User,
 } from 'lucide-react';
 
@@ -157,9 +160,22 @@ export default function PilotDetailPage() {
     }
   };
 
+  const formatDuration = (duracion: any) => {
+    if (!duracion) return '0:00';
+    if (typeof duracion === 'string') {
+      const match = duracion.match(/(\d+):(\d+):(\d+)/);
+      if (match) {
+        const hours = parseInt(match[1]);
+        const minutes = parseInt(match[2]);
+        return `${hours}:${minutes.toString().padStart(2, '0')}`;
+      }
+    }
+    return duracion;
+  };
+
   const tabs = [
     { id: 'info', label: 'Información', icon: Info },
-    { id: 'operacional', label: 'Operacional', icon: BarChart3 },
+    { id: 'operacional', label: 'Operacional', icon: Settings },
     { id: 'editar', label: 'Editar', icon: Edit },
     { id: 'eliminar', label: 'Eliminar', icon: Trash2 },
   ];
@@ -202,7 +218,7 @@ export default function PilotDetailPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/pilots" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+        <Link href="/pilots" className="p-2 hover:bg-gray-100 rounded-lg">
           <ArrowLeft className="h-5 w-5 text-gray-600" />
         </Link>
         <div className="flex-1 flex items-center gap-4">
@@ -248,7 +264,7 @@ export default function PilotDetailPage() {
         <select
           value={activeTab}
           onChange={(e) => setActiveTab(e.target.value as Tab)}
-          className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-4 py-3 border border-gray-200 rounded-lg"
         >
           {tabs.map((tab) => (
             <option key={tab.id} value={tab.id}>
@@ -265,15 +281,15 @@ export default function PilotDetailPage() {
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <p className="text-sm text-gray-500 mb-1">Nombre</p>
+                <p className="text-sm text-gray-500">Nombre</p>
                 <p className="text-base font-semibold text-gray-900">{piloto.nombre}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500 mb-1">Email</p>
+                <p className="text-sm text-gray-500">Email</p>
                 <p className="text-base font-semibold text-gray-900">{piloto.email}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500 mb-1">Rol</p>
+                <p className="text-sm text-gray-500">Rol</p>
                 <span className={`inline-block px-3 py-1 text-sm font-medium rounded-full ${getRolColor(piloto.id_rol)}`}>
                   {getRolNombre(piloto.id_rol)}
                 </span>
@@ -282,7 +298,7 @@ export default function PilotDetailPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <p className="text-sm text-gray-500 mb-1">Estado</p>
+                <p className="text-sm text-gray-500">Estado</p>
                 <span className={`inline-block px-3 py-1 text-sm font-medium rounded-full ${
                   piloto.estado_membresia === 'activo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                 }`}>
@@ -290,7 +306,7 @@ export default function PilotDetailPage() {
                 </span>
               </div>
               <div>
-                <p className="text-sm text-gray-500 mb-1">Miembro desde</p>
+                <p className="text-sm text-gray-500">Miembro desde</p>
                 <p className="text-base font-semibold text-gray-900">
                   {piloto.created_at ? new Date(piloto.created_at).toLocaleDateString('es-ES') : '-'}
                 </p>
@@ -305,7 +321,7 @@ export default function PilotDetailPage() {
             {/* Tarjetas de métricas */}
             <div>
               <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 mb-4">
-                <BarChart3 className="h-5 w-5" />
+                <TrendingUp className="h-5 w-5" />
                 Métricas de Actividad
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -338,14 +354,14 @@ export default function PilotDetailPage() {
             {/* Historial de vuelos */}
             <div>
               <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 mb-4">
-                <PlaneTakeoff className="h-5 w-5" />
+                <Calendar className="h-5 w-5" />
                 Historial de Vuelos (Últimos 10)
               </h3>
               
               {vuelos.length > 0 ? (
                 <div className="space-y-3">
                   {vuelos.slice(0, 10).map((vuelo) => (
-                    <div key={vuelo.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div key={vuelo.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
                           <PlaneTakeoff className="h-5 w-5 text-blue-600" />
@@ -359,7 +375,7 @@ export default function PilotDetailPage() {
                         <p className="text-sm font-medium text-gray-900">
                           {vuelo.fecha ? new Date(vuelo.fecha).toLocaleDateString('es-ES') : '-'}
                         </p>
-                        <p className="text-xs text-gray-500">{vuelo.duracion?.toFixed(1) || 0} h</p>
+                        <p className="text-xs text-gray-500">{formatDuration(vuelo.duracion)} h</p>
                       </div>
                     </div>
                   ))}
@@ -378,20 +394,15 @@ export default function PilotDetailPage() {
         {/* EDITAR */}
         {activeTab === 'editar' && (
           <div className="space-y-6">
-            <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 mb-4">
-              <Edit className="h-5 w-5" />
-              Editar Piloto
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Editar Piloto</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Rol <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
                 <select
                   value={formData.id_rol}
                   onChange={(e) => setFormData({...formData, id_rol: parseInt(e.target.value)})}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value={1}>Admin</option>
                   <option value={2}>Operador</option>
@@ -400,13 +411,11 @@ export default function PilotDetailPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Estado <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
                 <select
                   value={formData.estado_membresia}
                   onChange={(e) => setFormData({...formData, estado_membresia: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="activo">Activo</option>
                   <option value="inactivo">Inactivo</option>
@@ -414,11 +423,11 @@ export default function PilotDetailPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 pt-6 border-t border-gray-200">
+            <div className="flex items-center gap-3 pt-6">
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium disabled:opacity-50"
               >
                 {saving ? (
                   <>
@@ -434,7 +443,7 @@ export default function PilotDetailPage() {
               </button>
               <button
                 onClick={() => setActiveTab('info')}
-                className="inline-flex items-center gap-2 border border-gray-200 px-6 py-3 rounded-lg hover:bg-gray-50 transition-colors"
+                className="inline-flex items-center gap-2 border border-gray-200 px-6 py-3 rounded-lg hover:bg-gray-50"
               >
                 <X className="h-5 w-5" />
                 <span>Cancelar</span>
@@ -447,28 +456,19 @@ export default function PilotDetailPage() {
         {activeTab === 'eliminar' && (
           <div className="space-y-6">
             <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-6 w-6 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 mb-4">
+                <AlertTriangle className="h-6 w-6 text-red-600 flex-shrink-0" />
                 <div>
                   <h3 className="text-lg font-semibold text-red-900 mb-2">
                     ¿Eliminar piloto del equipo?
                   </h3>
                   <p className="text-sm text-red-700 mb-4">
-                    Esta acción es <strong>irreversible</strong>. El piloto será removido del equipo pero sus vuelos registrados se mantendrán en el sistema.
+                    Esta acción es <strong>irreversible</strong>. El piloto será removido del equipo pero sus vuelos registrados se mantendrán.
                   </p>
-                  <ul className="text-sm text-red-700 space-y-1">
-                    <li className="flex items-start gap-2">
-                      <span className="text-red-500 mt-0.5">•</span>
-                      <span>El piloto ya no tendrá acceso a esta operadora</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-red-500 mt-0.5">•</span>
-                      <span>Sus vuelos históricos permanecerán en el sistema</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-red-500 mt-0.5">•</span>
-                      <span>Podrá ser invitado nuevamente en el futuro</span>
-                    </li>
+                  <ul className="text-sm text-red-700 space-y-1 mb-4">
+                    <li>• El piloto ya no tendrá acceso a esta operadora</li>
+                    <li>• Sus vuelos históricos permanecerán en el sistema</li>
+                    <li>• Podrá ser invitado nuevamente en el futuro</li>
                   </ul>
                 </div>
               </div>
@@ -478,7 +478,7 @@ export default function PilotDetailPage() {
               <button
                 onClick={handleDelete}
                 disabled={saving}
-                className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium disabled:opacity-50"
               >
                 {saving ? (
                   <>
@@ -494,7 +494,7 @@ export default function PilotDetailPage() {
               </button>
               <button
                 onClick={() => setActiveTab('info')}
-                className="inline-flex items-center gap-2 border border-gray-200 px-6 py-3 rounded-lg hover:bg-gray-50 transition-colors"
+                className="inline-flex items-center gap-2 border border-gray-200 px-6 py-3 rounded-lg hover:bg-gray-50"
               >
                 <X className="h-5 w-5" />
                 <span>Cancelar</span>
