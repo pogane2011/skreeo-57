@@ -5,6 +5,10 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { 
+  generarPDFDatosTecnicos,
+  generarPDFMantenimiento
+} from '@/lib/pdfGenerator';
+import { 
   ArrowLeft,
   Info,
   Settings,
@@ -34,10 +38,12 @@ export default function AccesorioDetailPage() {
 
   const [activeTab, setActiveTab] = useState<Tab>('info');
   const [accesorio, setAccesorio] = useState<any>(null);
+  const [operadora, setOperadora] = useState<any>(null);
   const [vuelos, setVuelos] = useState<any[]>([]);
   const [mantenimientos, setMantenimientos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -88,6 +94,17 @@ export default function AccesorioDetailPage() {
       if (!operadorData) {
         router.push('/fleet');
         return;
+      }
+
+      // Obtener datos de la operadora
+      const { data: operadoraData } = await supabase
+        .from('operadoras')
+        .select('*')
+        .eq('id', operadorData.id_operadora)
+        .single();
+
+      if (operadoraData) {
+        setOperadora(operadoraData);
       }
 
       // Obtener accesorio
@@ -310,6 +327,31 @@ export default function AccesorioDetailPage() {
       alert('Error al eliminar accesorio');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Funciones de descarga
+  const handleDescargarDatosTecnicos = () => {
+    setGeneratingPDF(true);
+    try {
+      generarPDFDatosTecnicos(accesorio, operadora);
+    } catch (error) {
+      console.error('Error generando PDF:', error);
+      alert('Error al generar PDF');
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
+
+  const handleDescargarMantenimiento = () => {
+    setGeneratingPDF(true);
+    try {
+      generarPDFMantenimiento(accesorio, operadora, mantenimientos);
+    } catch (error) {
+      console.error('Error generando PDF:', error);
+      alert('Error al generar PDF');
+    } finally {
+      setGeneratingPDF(false);
     }
   };
 
@@ -818,7 +860,11 @@ export default function AccesorioDetailPage() {
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Exportar Datos</h3>
             
-            <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+            <button 
+              onClick={handleDescargarDatosTecnicos}
+              disabled={generatingPDF}
+              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            >
               <div className="flex items-center gap-3">
                 <FileText className="h-5 w-5 text-red-600" />
                 <div className="text-left">
@@ -829,16 +875,29 @@ export default function AccesorioDetailPage() {
               <Download className="h-5 w-5 text-gray-400" />
             </button>
 
-            <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+            <button 
+              onClick={handleDescargarMantenimiento}
+              disabled={generatingPDF || mantenimientos.length === 0}
+              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            >
               <div className="flex items-center gap-3">
                 <FileText className="h-5 w-5 text-red-600" />
                 <div className="text-left">
                   <p className="font-medium text-gray-900">Mantenimiento (PDF)</p>
-                  <p className="text-sm text-gray-500">Libro completo</p>
+                  <p className="text-sm text-gray-500">
+                    {mantenimientos.length > 0 ? `${mantenimientos.length} registros` : 'No hay registros'}
+                  </p>
                 </div>
               </div>
               <Download className="h-5 w-5 text-gray-400" />
             </button>
+
+            {generatingPDF && (
+              <div className="flex items-center justify-center gap-2 text-blue-600 mt-4">
+                <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm">Generando PDF...</span>
+              </div>
+            )}
           </div>
         )}
 
