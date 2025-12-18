@@ -1003,7 +1003,8 @@ export default function DroneDetailPage() {
           <div className="space-y-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Editar UAS</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* FILA 1: Categoría, Marca/Modelo, Alias (igual que en Información) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Categoría *</label>
                 <select
@@ -1034,16 +1035,17 @@ export default function DroneDetailPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Matrícula *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Alias</label>
                 <input
                   type="text"
-                  value={formData.num_matricula}
-                  onChange={(e) => setFormData({...formData, num_matricula: e.target.value})}
+                  value={formData.alias}
+                  onChange={(e) => setFormData({...formData, alias: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="ES-XXX-XXXX"
+                  placeholder="Drone principal"
                 />
               </div>
 
+              {/* FILA 2: Nº Serie, Matrícula, Póliza Seguro (igual que en Información) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Número de Serie</label>
                 <input
@@ -1056,13 +1058,13 @@ export default function DroneDetailPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Alias</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Matrícula *</label>
                 <input
                   type="text"
-                  value={formData.alias}
-                  onChange={(e) => setFormData({...formData, alias: e.target.value})}
+                  value={formData.num_matricula}
+                  onChange={(e) => setFormData({...formData, num_matricula: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Drone principal"
+                  placeholder="ES-XXX-XXXX"
                 />
               </div>
 
@@ -1077,16 +1079,7 @@ export default function DroneDetailPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Compra</label>
-                <input
-                  type="date"
-                  value={formData.fecha_compra}
-                  onChange={(e) => setFormData({...formData, fecha_compra: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
+              {/* FILA 3: Precio, Fecha Compra, Estado (igual que en Información) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Precio (€)</label>
                 <input
@@ -1100,14 +1093,12 @@ export default function DroneDetailPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vida Útil (horas)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Compra</label>
                 <input
-                  type="number"
-                  step="0.1"
-                  value={formData.vida_util}
-                  onChange={(e) => setFormData({...formData, vida_util: e.target.value})}
+                  type="date"
+                  value={formData.fecha_compra}
+                  onChange={(e) => setFormData({...formData, fecha_compra: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="1000"
                 />
               </div>
 
@@ -1123,6 +1114,19 @@ export default function DroneDetailPage() {
                   <option value="reparacion">Reparación</option>
                   <option value="retirado">Retirado</option>
                 </select>
+              </div>
+
+              {/* FILA 4: Vida Útil (campo adicional no visible en Información) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vida Útil (horas)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={formData.vida_util}
+                  onChange={(e) => setFormData({...formData, vida_util: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="1000"
+                />
               </div>
             </div>
 
