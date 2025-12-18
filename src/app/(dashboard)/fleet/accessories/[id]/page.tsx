@@ -906,6 +906,7 @@ export default function AccesorioDetailPage() {
           <div className="space-y-6">
             <h3 className="text-lg font-semibold text-gray-900">Editar Accesorio</h3>
             
+            {/* FILA 1: Categoría, Alias, Marca/Modelo (igual que Información) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Categoría *</label>
@@ -928,6 +929,7 @@ export default function AccesorioDetailPage() {
                   value={formData.alias}
                   onChange={(e) => setFormData({...formData, alias: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Batería principal"
                 />
               </div>
               <div>
@@ -937,10 +939,12 @@ export default function AccesorioDetailPage() {
                   value={formData.marca_modelo}
                   onChange={(e) => setFormData({...formData, marca_modelo: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="DJI TB30"
                 />
               </div>
             </div>
 
+            {/* FILA 2: Nº Serie, Precio, Fecha Compra (igual que Información) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nº Serie</label>
@@ -949,6 +953,7 @@ export default function AccesorioDetailPage() {
                   value={formData.num_serie}
                   onChange={(e) => setFormData({...formData, num_serie: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="SN123456"
                 />
               </div>
               <div>
@@ -959,7 +964,32 @@ export default function AccesorioDetailPage() {
                   value={formData.precio}
                   onChange={(e) => setFormData({...formData, precio: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="150.00"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Compra</label>
+                <input
+                  type="date"
+                  value={formData.fecha_compra}
+                  onChange={(e) => setFormData({...formData, fecha_compra: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* FILA 3: Estado, Vida Útil (Estado igual que Información + campo adicional) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                <select
+                  value={formData.estado}
+                  onChange={(e) => setFormData({...formData, estado: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="activo">Activo</option>
+                  <option value="inactivo">Inactivo</option>
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Vida Útil (ciclos)</label>
@@ -968,35 +998,35 @@ export default function AccesorioDetailPage() {
                   value={formData.vida_util}
                   onChange={(e) => setFormData({...formData, vida_util: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="500"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-              <select
-                value={formData.estado}
-                onChange={(e) => setFormData({...formData, estado: e.target.value})}
-                className="w-full max-w-xs px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="activo">Activo</option>
-                <option value="inactivo">Inactivo</option>
-              </select>
-            </div>
-
-            <div className="flex gap-3">
+            <div className="flex gap-3 pt-6">
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium"
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium disabled:opacity-50"
               >
-                {saving ? 'Guardando...' : 'Guardar Cambios'}
+                {saving ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-5 w-5" />
+                    <span>Guardar Cambios</span>
+                  </>
+                )}
               </button>
               <button
                 onClick={() => setActiveTab('info')}
-                className="inline-flex items-center gap-2 border border-gray-200 px-6 py-2 rounded-lg hover:bg-gray-50"
+                className="inline-flex items-center gap-2 border border-gray-200 px-6 py-3 rounded-lg hover:bg-gray-50"
               >
-                Cancelar
+                <X className="h-5 w-5" />
+                <span>Cancelar</span>
               </button>
             </div>
           </div>
