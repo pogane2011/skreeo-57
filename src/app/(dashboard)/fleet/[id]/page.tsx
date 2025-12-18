@@ -194,6 +194,28 @@ export default function DroneDetailPage() {
     }
   };
 
+  // Helper: Formatear horas al formato TIME de PostgreSQL
+  const formatearHorasVuelo = (horas: string): string | null => {
+    if (!horas) return null;
+    
+    // Si ya tiene formato completo (10:30:00), dejarlo
+    if (/^\d{1,2}:\d{2}:\d{2}$/.test(horas)) {
+      return horas;
+    }
+    
+    // Si tiene formato parcial (10:30), añadir :00
+    if (/^\d{1,2}:\d{2}$/.test(horas)) {
+      return `${horas}:00`;
+    }
+    
+    // Si solo tiene horas (10), convertir a 10:00:00
+    if (/^\d{1,2}$/.test(horas)) {
+      return `${horas}:00:00`;
+    }
+    
+    return null;
+  };
+
   const handleAddMantenimiento = async () => {
     if (!nuevoMant.descripcion) {
       alert('La descripción es obligatoria');
@@ -211,7 +233,7 @@ export default function DroneDetailPage() {
           id_dispositivo: droneId,
           fecha: nuevoMant.fecha,
           descripcion: nuevoMant.descripcion,
-          horas_vuelo: nuevoMant.horas_vuelo || null,
+          horas_vuelo: formatearHorasVuelo(nuevoMant.horas_vuelo),
           precio: parseFloat(nuevoMant.precio) || null,
         });
 
@@ -647,13 +669,16 @@ export default function DroneDetailPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Horas de Vuelo</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Horas de Vuelo
+                    <span className="text-xs text-gray-500 ml-2">(Ej: 10 o 10:30 o 10:30:00)</span>
+                  </label>
                   <input
                     type="text"
                     value={nuevoMant.horas_vuelo}
                     onChange={(e) => setNuevoMant({...nuevoMant, horas_vuelo: e.target.value})}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="11:00:00"
+                    placeholder="10 o 10:30 o 10:30:00"
                   />
                 </div>
                 <div>
@@ -801,4 +826,4 @@ export default function DroneDetailPage() {
       </div>
     </div>
   );
-        }
+}
