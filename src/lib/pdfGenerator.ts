@@ -54,9 +54,9 @@ export const generarPDFDatosTecnicos = (drone: any, operadora: any) => {
 
   let yPos = 63;
   datosUAS.forEach(([label, value]) => {
-    doc.setFont(undefined, 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.text(label, 15, yPos);
-    doc.setFont(undefined, 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.text(value, 60, yPos);
     yPos += 7;
   });
@@ -77,9 +77,9 @@ export const generarPDFDatosTecnicos = (drone: any, operadora: any) => {
 
   yPos = 63;
   datosEcon.forEach(([label, value]) => {
-    doc.setFont(undefined, 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.text(label, 110, yPos);
-    doc.setFont(undefined, 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.text(value, 160, yPos);
     yPos += 7;
   });
@@ -106,9 +106,9 @@ export const generarPDFDatosTecnicos = (drone: any, operadora: any) => {
 
   yPos = 63;
   datosOper.forEach(([label, value]) => {
-    doc.setFont(undefined, 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.text(label, 200, yPos);
-    doc.setFont(undefined, 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.text(value, 240, yPos);
     yPos += 7;
   });
