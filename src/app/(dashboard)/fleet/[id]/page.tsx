@@ -144,10 +144,9 @@ export default function DroneDetailPage() {
 
       // Obtener mantenimientos
       const { data: mantData } = await supabase
-        .from('mantenimiento')
+        .from('mantenimiento_drones')
         .select('*')
-        .eq('tipo_dispositivo', 'drone')
-        .eq('id_dispositivo', droneId)
+        .eq('id_drone', droneId)
         .order('fecha', { ascending: false });
 
       setMantenimientos(mantData || []);
@@ -227,10 +226,9 @@ export default function DroneDetailPage() {
       const supabase = createClient();
       
       const { error } = await supabase
-        .from('mantenimiento')
+        .from('mantenimiento_drones')
         .insert({
-          tipo_dispositivo: 'drone',
-          id_dispositivo: droneId,
+          id_drone: droneId,
           fecha: nuevoMant.fecha,
           descripcion: nuevoMant.descripcion,
           horas_vuelo: formatearHorasVuelo(nuevoMant.horas_vuelo),
