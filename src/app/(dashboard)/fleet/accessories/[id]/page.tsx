@@ -59,6 +59,10 @@ export default function AccesorioDetailPage() {
     precio: '',
   });
   const [showNuevoMant, setShowNuevoMant] = useState(false);
+  
+  // Editar mantenimiento
+  const [editandoMant, setEditandoMant] = useState<any>(null);
+  const [showEditarMant, setShowEditarMant] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -204,6 +208,77 @@ export default function AccesorioDetailPage() {
     } catch (error) {
       console.error('Error:', error);
       alert('Error al registrar mantenimiento');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEditarMantenimiento = (mant: any) => {
+    setEditandoMant({
+      id: mant.id,
+      fecha: mant.fecha.split('T')[0],
+      descripcion: mant.descripcion,
+      ciclos_uso: mant.ciclos_uso?.toString() || '',
+      precio: mant.precio?.toString() || '',
+    });
+    setShowEditarMant(true);
+  };
+
+  const handleUpdateMantenimiento = async () => {
+    if (!editandoMant.descripcion) {
+      alert('La descripción es obligatoria');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      
+      const { error } = await supabase
+        .from('mantenimiento_accesorios')
+        .update({
+          fecha: editandoMant.fecha,
+          descripcion: editandoMant.descripcion,
+          ciclos_uso: parseInt(editandoMant.ciclos_uso) || null,
+          precio: parseFloat(editandoMant.precio) || null,
+        })
+        .eq('id', editandoMant.id);
+
+      if (error) throw error;
+
+      alert('Mantenimiento actualizado');
+      setShowEditarMant(false);
+      setEditandoMant(null);
+      loadData();
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al actualizar mantenimiento');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteMantenimiento = async (mantId: string) => {
+    if (!confirm('¿Estás seguro de eliminar este registro de mantenimiento?')) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      
+      const { error } = await supabase
+        .from('mantenimiento_accesorios')
+        .delete()
+        .eq('id', mantId);
+
+      if (error) throw error;
+
+      alert('Mantenimiento eliminado');
+      loadData();
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al eliminar mantenimiento');
     } finally {
       setSaving(false);
     }
@@ -610,27 +685,129 @@ export default function AccesorioDetailPage() {
             ) : (
               <div className="space-y-3">
                 {mantenimientos.map((mant) => (
-                  <div key={mant.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <div className="text-sm text-gray-500">
-                          {new Date(mant.fecha).toLocaleDateString('es-ES')}
+                  <div key={mant.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="text-sm text-gray-500">
+                            {new Date(mant.fecha).toLocaleDateString('es-ES')}
+                          </div>
+                          {mant.precio && (
+                            <div className="text-sm font-semibold text-green-600">
+                              {parseFloat(mant.precio).toFixed(2)} €
+                            </div>
+                          )}
+                          {mant.ciclos_uso && (
+                            <div className="text-sm text-gray-600">
+                              {mant.ciclos_uso} ciclos
+                            </div>
+                          )}
                         </div>
-                        {mant.precio && (
-                          <div className="text-sm font-semibold text-green-600">
-                            {parseFloat(mant.precio).toFixed(2)} €
-                          </div>
-                        )}
-                        {mant.ciclos_uso && (
-                          <div className="text-sm text-gray-600">
-                            {mant.ciclos_uso} ciclos
-                          </div>
-                        )}
+                        <p className="text-gray-900">{mant.descripcion}</p>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={() => handleEditarMantenimiento(mant)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Editar"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMantenimiento(mant.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
-                    <p className="text-gray-900">{mant.descripcion}</p>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Modal Editar Mantenimiento */}
+            {showEditarMant && editandoMant && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                  <h4 className="font-medium text-gray-900 text-lg mb-4">Editar Mantenimiento</h4>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                        <input
+                          type="date"
+                          value={editandoMant.fecha}
+                          onChange={(e) => setEditandoMant({...editandoMant, fecha: e.target.value})}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Precio (€)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editandoMant.precio}
+                          onChange={(e) => setEditandoMant({...editandoMant, precio: e.target.value})}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Ciclos de Uso
+                      </label>
+                      <input
+                        type="number"
+                        value={editandoMant.ciclos_uso}
+                        onChange={(e) => setEditandoMant({...editandoMant, ciclos_uso: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Descripción *</label>
+                      <textarea
+                        value={editandoMant.descripcion}
+                        onChange={(e) => setEditandoMant({...editandoMant, descripcion: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        rows={3}
+                        placeholder="Recarga batería"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3 pt-4">
+                      <button
+                        onClick={handleUpdateMantenimiento}
+                        disabled={saving}
+                        className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
+                      >
+                        {saving ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <span>Guardando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Check className="h-4 w-4" />
+                            <span>Guardar Cambios</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowEditarMant(false);
+                          setEditandoMant(null);
+                        }}
+                        className="inline-flex items-center gap-2 border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50"
+                      >
+                        <X className="h-4 w-4" />
+                        <span>Cancelar</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
