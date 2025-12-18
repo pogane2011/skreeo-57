@@ -72,7 +72,7 @@ export default function NewDronePage() {
           poliza: formData.poliza || null,
           fecha_compra: formData.fecha_compra || null,
           precio: formData.precio ? parseFloat(formData.precio) : null,
-          vida_util_estimada: formData.vida_util ? parseFloat(formData.vida_util) : null,
+          vida_util: formData.vida_util ? parseFloat(formData.vida_util) : null,
           estado: formData.estado,
           horas_voladas: 0,
           eliminado: false,

@@ -98,7 +98,7 @@ export interface Database {
           precio: number | null
           fecha_compra: string | null
           horas_uso: number
-          vida_util_estimada: number | null
+          vida_util: number | null
           activo: boolean
           tco_por_hora: number | null
           fecha_creacion: string
@@ -115,7 +115,7 @@ export interface Database {
           precio?: number | null
           fecha_compra?: string | null
           horas_uso?: number
-          vida_util_estimada?: number | null
+          vida_util?: number | null
           activo?: boolean
           tco_por_hora?: number | null
           fecha_creacion?: string
@@ -132,7 +132,7 @@ export interface Database {
           precio?: number | null
           fecha_compra?: string | null
           horas_uso?: number
-          vida_util_estimada?: number | null
+          vida_util?: number | null
           activo?: boolean
           tco_por_hora?: number | null
           fecha_creacion?: string
