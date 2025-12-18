@@ -20,14 +20,12 @@ export default function PilotsPage() {
     try {
       const supabase = createClient();
       
-      // Obtener usuario actual
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.push('/login');
         return;
       }
 
-      // Obtener operador activo
       const { data: operadorData } = await supabase
         .from('operadora_pilotos')
         .select('id_operadora')
@@ -40,18 +38,13 @@ export default function PilotsPage() {
         return;
       }
 
-      // Obtener pilotos de la operadora con datos de auth.users
       const { data: pilotosData } = await supabase
         .from('operadora_pilotos')
-        .select(`
-          *,
-          roles(id, nombre)
-        `)
+        .select('*')
         .eq('id_operadora', operadorData.id_operadora)
         .order('created_at', { ascending: false });
 
       if (pilotosData) {
-        // Obtener datos de usuario para cada piloto
         const pilotosConDatos = await Promise.all(
           pilotosData.map(async (piloto) => {
             const { data: userData } = await supabase.auth.admin.getUserById(piloto.id_piloto);
